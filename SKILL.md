@@ -82,18 +82,18 @@ that either silently fails, leaks plaintext, or is exploitable.
 
 User says... → Read this reference file:
 
-| User intent | File |
-|---|---|
-| "What encrypted types should I use?" | `references/01-types-cheatsheet.md` |
-| "Which FHE op for X? What does it cost?" | `references/02-operations-table.md` |
-| "Who can decrypt this? When do I call allow vs allowThis?" | `references/03-acl-decision-tree.md` |
-| "Is this code safe? Is this an anti-pattern?" | `references/04-anti-patterns-catalog.md` |
-| "How do I decrypt asynchronously?" | `references/05-async-decryption.md` |
-| "How do encrypted inputs from the frontend work?" | `references/06-input-proofs.md` |
-| "How do I test this in Foundry / Hardhat?" | `references/07-testing-frameworks.md` |
-| "How do I encrypt/decrypt in the React app?" | `references/08-relayer-sdk-frontend.md` |
-| "Audit this for security issues" | `references/09-security-checklist.md` |
-| "Build me a [token / auction / vote / oracle / DCA / group buy]" | `references/10-recipes/<recipe>.md` |
+| User intent                                                      | File                                     |
+| ---------------------------------------------------------------- | ---------------------------------------- |
+| "What encrypted types should I use?"                             | `references/01-types-cheatsheet.md`      |
+| "Which FHE op for X? What does it cost?"                         | `references/02-operations-table.md`      |
+| "Who can decrypt this? When do I call allow vs allowThis?"       | `references/03-acl-decision-tree.md`     |
+| "Is this code safe? Is this an anti-pattern?"                    | `references/04-anti-patterns-catalog.md` |
+| "How do I decrypt asynchronously?"                               | `references/05-async-decryption.md`      |
+| "How do encrypted inputs from the frontend work?"                | `references/06-input-proofs.md`          |
+| "How do I test this in Foundry / Hardhat?"                       | `references/07-testing-frameworks.md`    |
+| "How do I encrypt/decrypt in the React app?"                     | `references/08-relayer-sdk-frontend.md`  |
+| "Audit this for security issues"                                 | `references/09-security-checklist.md`    |
+| "Build me a [token / auction / vote / oracle / DCA / group buy]" | `references/10-recipes/<recipe>.md`      |
 
 Always run `pnpm lint:fhe` (this skill's bundled AST linter) on any
 modified `.sol` file before declaring work complete. If issues surface, run
@@ -120,17 +120,17 @@ If any check fails → fix before responding to the user with "done."
 
 <encrypted_types_quickref>
 
-| Type | Use for | Bit-width |
-|---|---|---|
-| `ebool` | Boolean flags, comparison results, gates fed to `FHE.select` | 1 |
-| `euint8` | Small flags, percentage fields, one-byte enums | 8 |
-| `euint16` | Counters, small ID spaces | 16 |
-| `euint32` | Sub-billion integers | 32 |
-| `euint64` | **Default for token balances and amounts** (matches ERC-7984) | 64 |
-| `euint128` | Large monetary aggregates, BPS math | 128 |
-| `euint256` | Cryptographic-grade large numbers — **avoid for anything else** (4–6× more HCU) | 256 |
-| `eaddress` (alias `euint160`) | Encrypted addresses (sealed-bid winner) | 160 |
-| `externalEuintXX` | Wire-format encrypted input — convert immediately via `FHE.fromExternal` | varies |
+| Type                          | Use for                                                                         | Bit-width |
+| ----------------------------- | ------------------------------------------------------------------------------- | --------- |
+| `ebool`                       | Boolean flags, comparison results, gates fed to `FHE.select`                    | 1         |
+| `euint8`                      | Small flags, percentage fields, one-byte enums                                  | 8         |
+| `euint16`                     | Counters, small ID spaces                                                       | 16        |
+| `euint32`                     | Sub-billion integers                                                            | 32        |
+| `euint64`                     | **Default for token balances and amounts** (matches ERC-7984)                   | 64        |
+| `euint128`                    | Large monetary aggregates, BPS math                                             | 128       |
+| `euint256`                    | Cryptographic-grade large numbers — **avoid for anything else** (4–6× more HCU) | 256       |
+| `eaddress` (alias `euint160`) | Encrypted addresses (sealed-bid winner)                                         | 160       |
+| `externalEuintXX`             | Wire-format encrypted input — convert immediately via `FHE.fromExternal`        | varies    |
 
 Pick the **smallest** type that fits. HCU cost scales superlinearly with width.
 
@@ -221,22 +221,24 @@ function requestRevealMyBalance() external {
 
 function fulfillReveal(
     uint256 requestId,
-    uint64 plaintext,
-    bytes[] calldata signatures
+    uint256[] calldata cleartexts,
+    bytes calldata decryptionProof
 ) external {
     address requester = _pendingDecrypt[requestId];
     require(requester != address(0), "unknown id");
     delete _pendingDecrypt[requestId];   // ← REPLAY DEFENSE: delete BEFORE effects
 
-    bytes32 handle = _expectedHandle[requestId];
-    FHE.checkSignatures(plaintext, signatures);  // verifies KMS quorum
+    // FHE.checkSignatures takes (handles[], abi.encode(cleartexts), proof)
+    bytes32[] memory handles = new bytes32[](1);
+    handles[0] = _expectedHandle[requestId];
+    FHE.checkSignatures(handles, abi.encode(cleartexts), decryptionProof);
 
-    // Now safe to act on plaintext
-    emit Revealed(requester, plaintext);
+    emit Revealed(requester, uint64(cleartexts[0]));
 }
 ```
 
 **Three classes of bug to avoid** (full discussion in `references/05-async-decryption.md`):
+
 1. Skipping the `delete` — relayer can replay the callback, drain funds.
 2. Using the ciphertext handle as the request ID — handles can collide / be reused.
 3. Disclosing winner immediately on time-lock expiry — reorgs can flip outcome
@@ -264,10 +266,12 @@ function deposit(externalEuint64 encAmount, bytes calldata inputProof) external 
 const enc = await encrypt.mutateAsync({
   values: [{ value: BigInt(amount), type: "euint64" }],
   contractAddress: token.address,
-  userAddress: address,         // binds proof to caller
+  userAddress: address, // binds proof to caller
 });
 await writeContractAsync({
-  address: token.address, abi: token.abi, functionName: "deposit",
+  address: token.address,
+  abi: token.abi,
+  functionName: "deposit",
   args: [bytesToHex(enc.handles[0]!), bytesToHex(enc.inputProof)],
   gas: 15_000_000n,
 });
@@ -302,20 +306,26 @@ contract MyTest is FhevmTest {
         uint256 plain = userDecrypt(euint64.unwrap(token.balanceOf(alice)), alice, address(token), sig);
         assertEq(plain, 1000);
     }
+    function test_asyncReveal() public {
+        vault.requestWithdraw();
+        bytes32[] memory hs = new bytes32[](1); hs[0] = vault.pendingHandle();
+        (uint256[] memory cleartexts, bytes memory proof) = publicDecrypt(hs);
+        vault.fulfillWithdraw(vault.lastReqId(), cleartexts, proof);  // manual relayer
+    }
 }
 ```
 
-Run with `pnpm contracts:test` (which calls `forge test -vv`). Anvil cleartext
-host runs automatically; no relayer needed for tests.
+forge-fhevm has **no `awaitDecryptionOracle`** (that's Hardhat-only) — drive
+the callback manually via `publicDecrypt(handles[])`, which returns the
+cleartexts AND the KMS-signed proof.
 
 **Hardhat (SECONDARY)** — `@fhevm/hardhat-plugin` exposes:
 
 ```ts
-const enc = await fhevm.createEncryptedInput(token.address, alice.address)
-                      .add64(1000n).encrypt();
+const enc = await fhevm.createEncryptedInput(token.address, alice.address).add64(1000n).encrypt();
 await token.connect(alice).deposit(enc.handles[0], enc.inputProof);
 const plain = await fhevm.userDecryptEuint(handle, alice);
-await fhevm.awaitDecryptionOracle();   // for async-decryption flows
+await fhevm.awaitDecryptionOracle(); // Hardhat auto-drives async callbacks
 ```
 
 Full guide (mock vs local-node vs sepolia mode, silent-failure path tests):
@@ -330,14 +340,16 @@ Stack: `@zama-fhe/react-sdk` v3 hooks + wagmi. Wrap your tree in
 `RelayerWeb` for Sepolia).
 
 Key hooks:
+
 ```ts
-const encrypt    = useEncrypt();                                      // build externalEuintXX + proof
-const decrypt    = useUserDecrypt({ handles: [{ handle, contractAddress }] });
-const { mutate: allow } = useAllow();                                  // EIP-712 keypair grant
-const { data: isAllowed } = useIsAllowed({ contractAddresses: [c] });  // gates decrypt
+const encrypt = useEncrypt(); // build externalEuintXX + proof
+const decrypt = useUserDecrypt({ handles: [{ handle, contractAddress }] });
+const { mutate: allow } = useAllow(); // EIP-712 keypair grant
+const { data: isAllowed } = useIsAllowed({ contractAddresses: [c] }); // gates decrypt
 ```
 
 Anti-patterns (full list in `references/08-relayer-sdk-frontend.md`):
+
 - `createInstance` on every render (do it once at provider level).
 - Persisting EIP-712 signature in `localStorage` (use in-memory cache).
 - Putting decrypted plaintext in a URL / route param after decryption.

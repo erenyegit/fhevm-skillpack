@@ -4,19 +4,15 @@ pragma solidity ^0.8.27;
 import {FHE, euint64, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
+/// @notice Slim confidential-token interface this demo uses. Differs from
+///         ERC-7984 in one important way: transfers take an already-validated
+///         `euint64` handle rather than `(externalEuint64, bytes proof)` —
+///         this avoids cross-contract proof-binding ambiguity. The pledger's
+///         FHE.fromExternal validation happens in this contract.
 interface IConfidentialToken {
-    function confidentialTransferFrom(
-        address from,
-        address to,
-        externalEuint64 enc,
-        bytes calldata proof
-    ) external returns (euint64 transferred);
+    function transferFromValidated(address from, address to, euint64 amount) external returns (euint64 transferred);
 
-    function confidentialTransfer(
-        address to,
-        externalEuint64 enc,
-        bytes calldata proof
-    ) external returns (euint64 transferred);
+    function transferValidated(address to, euint64 amount) external returns (euint64 transferred);
 }
 
 /// @title ConfidentialGroupBuy — Kickstarter-style group buy with encrypted pledges.
@@ -35,8 +31,8 @@ contract ConfidentialGroupBuy is ZamaEthereumConfig {
     mapping(address => euint64) private _contributions;
 
     uint256 public finalizationRequestId;
-    uint256 public scheduledRevealBlock;        // block at which reveal becomes legal (finality delay)
-    uint256 public constant FINALITY_BLOCKS = 12;  // Sepolia post-merge finality buffer
+    uint256 public scheduledRevealBlock; // block at which reveal becomes legal (finality delay)
+    uint256 public constant FINALITY_BLOCKS = 12; // Sepolia post-merge finality buffer
     bool public finalized;
     bool public goalMet;
     uint64 public revealedTotal;
@@ -44,6 +40,12 @@ contract ConfidentialGroupBuy is ZamaEthereumConfig {
     event Pledged(address indexed backer, bytes32 transferredHandle);
     event FinalizationRequested(uint256 requestId, bytes32 totalHandle);
     event Finalized(bool goalMet, uint64 total);
+
+    /// @notice Returns the handle the relayer must decrypt, so off-chain
+    ///         services can find what to sign without parsing storage.
+    function getTotalHandle() external view returns (bytes32) {
+        return euint64.unwrap(_totalRaised);
+    }
 
     constructor(IConfidentialToken _token, uint64 _goal, uint256 _deadline) {
         require(_deadline > block.timestamp, "deadline in past");
@@ -57,17 +59,22 @@ contract ConfidentialGroupBuy is ZamaEthereumConfig {
     /// @notice Pledge an encrypted amount towards the goal.
     /// @dev Uses the *effective* transferred amount (AP-018) — silent transfer
     ///      failures (insufficient balance) result in 0-pledge, not over-pledge.
-    /// fhe-lint-disable-next-line AP-006,AP-021
-    /// AP-006: encAmount/proof are delegated unchanged to token.confidentialTransferFrom which
-    ///         does its own FHE.fromExternal validation. The encryption MUST be bound to
-    ///         the token address on the frontend (`contractAddress: token.address`).
-    /// AP-021: pulls funds from msg.sender via confidentialTransferFrom, which already enforces
-    ///         caller ownership of the source balance — no separate caller-binding needed.
+    /// fhe-lint-disable-next-line AP-021
+    /// AP-021 OK: the encrypted input is bound to (this contract, msg.sender) by
+    /// FHE.fromExternal; transferFromValidated then pulls from msg.sender's balance
+    /// at the token. A 3rd-party caller cannot replay because the proof binding
+    /// would mismatch the new caller, and the token's transfer would attribute the
+    /// debit to the new msg.sender (the attacker), not the original encrypter.
     function pledge(externalEuint64 encAmount, bytes calldata proof) external {
         require(block.timestamp < deadline, "deadline passed");
         require(!finalized, "finalized");
 
-        euint64 transferred = token.confidentialTransferFrom(msg.sender, address(this), encAmount, proof);
+        // Validate the encrypted input ourselves. Encryption MUST target this
+        // contract's address on the frontend.
+        euint64 amount = FHE.fromExternal(encAmount, proof);
+        // Hand the validated handle to the token via transient ACL.
+        FHE.allowTransient(amount, address(token));
+        euint64 transferred = token.transferFromValidated(msg.sender, address(this), amount);
 
         _contributions[msg.sender] = FHE.add(_contributions[msg.sender], transferred);
         _totalRaised = FHE.add(_totalRaised, transferred);
@@ -105,17 +112,25 @@ contract ConfidentialGroupBuy is ZamaEthereumConfig {
         emit FinalizationRequested(id, euint64.unwrap(_totalRaised));
     }
 
-    /// @notice Relayer calls back with the decrypted total + KMS signatures.
+    /// @notice Relayer calls back with the decrypted total + KMS proof.
     /// @dev (1) match request id, (2) flip `finalized = true` BEFORE any external
-    ///      effect (AP-010), (3) verify signatures, (4) record outcome.
-    function finalizeCallback(uint256 requestId, uint64 totalCleartext, bytes[] calldata sigs) external {
+    ///      effect (AP-010 — replay defense), (3) verify the KMS-signed proof
+    ///      via `FHE.checkSignatures(handles, abi.encode(cleartexts), proof)`,
+    ///      (4) record outcome.
+    function finalizeCallback(uint256 requestId, uint256[] calldata cleartexts, bytes calldata decryptionProof)
+        external
+    {
         require(requestId != 0 && requestId == finalizationRequestId, "bad id");
         require(!finalized, "done");
-        finalized = true;                     // (1) replay defense BEFORE effects
+        require(cleartexts.length == 1, "bad payload");
+        finalized = true; // (1) replay defense BEFORE verify
         finalizationRequestId = 0;
 
-        FHE.checkSignatures(totalCleartext, sigs); // (2) KMS quorum verification
+        bytes32[] memory handles = new bytes32[](1);
+        handles[0] = euint64.unwrap(_totalRaised);
+        FHE.checkSignatures(handles, abi.encode(cleartexts), decryptionProof); // (2) KMS quorum
 
+        uint64 totalCleartext = uint64(cleartexts[0]);
         revealedTotal = totalCleartext;
         goalMet = totalCleartext >= goalAmount;
 
@@ -127,12 +142,16 @@ contract ConfidentialGroupBuy is ZamaEthereumConfig {
         emit Finalized(goalMet, totalCleartext);
     }
 
-    /// @notice After successful finalisation, creator pulls the cleartext total
-    ///         in the underlying confidential token to their wallet.
-    function withdrawToCreator(externalEuint64 encAmount, bytes calldata proof) external {
+    /// @notice After successful finalisation, creator pulls the funds.
+    /// @dev Uses revealedTotal as the plaintext amount — at this point the
+    ///      total is publicly known anyway. Encrypts the value as a euint64
+    ///      via trivial encrypt and transfers.
+    function withdrawToCreator() external {
         require(msg.sender == creator, "only creator");
         require(finalized && goalMet, "not funded");
-        token.confidentialTransfer(creator, encAmount, proof);
+        euint64 total = FHE.asEuint64(revealedTotal);
+        FHE.allowTransient(total, address(token));
+        token.transferValidated(creator, total);
     }
 
     /// fhe-lint-disable-next-line AP-011

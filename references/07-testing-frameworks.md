@@ -1,6 +1,7 @@
 # 07 — Testing frameworks (Foundry primary, Hardhat secondary)
 
 ## Contents
+
 - Foundry / forge-fhevm setup
 - Foundry test helpers
 - Encrypted-input creation in Foundry
@@ -78,33 +79,60 @@ contract MyTokenTest is FhevmTest {
 
 ### Helper API (inherited from `FhevmTest`)
 
-| Helper | Purpose |
-|---|---|
-| `encryptUintXX(value, encrypter, contract)` → `(externalEuintXX, bytes)` | Build encrypted input |
-| `encryptAddress(addr, encrypter, contract)` | Encrypted-address input |
-| `encryptBool(bool, encrypter, contract)` | Encrypted-bool input |
-| `signUserDecrypt(privateKey, contract)` → `bytes` | EIP-712 signature for user decryption |
-| `userDecrypt(handleBytes32, user, contract, sig)` → `uint256` | Decrypt handle on user's behalf |
-| `publicDecrypt(handleBytes32)` → `uint256` | Decrypt a `makePubliclyDecryptable` handle |
-| `awaitDecryptionOracle()` | Drive a pending async-decryption callback to completion |
+| Helper                                                                   | Purpose                                                 |
+| ------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `encryptUintXX(value, encrypter, contract)` → `(externalEuintXX, bytes)` | Build encrypted input                                   |
+| `encryptAddress(addr, encrypter, contract)`                              | Encrypted-address input                                 |
+| `encryptBool(bool, encrypter, contract)`                                 | Encrypted-bool input                                    |
+| `signUserDecrypt(privateKey, contract)` → `bytes`                        | EIP-712 signature for user decryption                   |
+| `userDecrypt(handleBytes32, user, contract, sig)` → `uint256`            | Decrypt handle on user's behalf                         |
+| `publicDecrypt(handleBytes32)` → `uint256`                               | Decrypt a `makePubliclyDecryptable` handle              |
+| `awaitDecryptionOracle()`                                                | Drive a pending async-decryption callback to completion |
 
 ### Async-decryption test pattern
+
+forge-fhevm does NOT auto-drive callbacks (no `awaitDecryptionOracle` —
+that's a Hardhat-only helper). Instead, drive the relayer manually using
+`publicDecrypt(bytes32[])`, which returns both the cleartexts and the
+KMS-signed `decryptionProof`:
 
 ```solidity
 function test_asyncReveal() public {
     vm.prank(alice);
-    vault.requestWithdraw();             // emits WithdrawRequested
+    vault.requestWithdraw();                              // marks handle decryptable
 
-    awaitDecryptionOracle();             // simulates KMS quorum + callback
+    // Manually simulate the relayer:
+    bytes32[] memory handles = new bytes32[](1);
+    handles[0] = vault.pendingHandle();                   // exposed via view
+    (uint256[] memory cleartexts, bytes memory proof) = publicDecrypt(handles);
+
+    // Call the contract's callback exactly as a real relayer would.
+    vault.fulfillWithdraw(vault.lastRequestId(), cleartexts, proof);
 
     // assert effects
     assertEq(alice.balance, expected);
 }
 ```
 
-`awaitDecryptionOracle()` finds pending decryption requests recorded by the
-forge-fhevm host, fetches their cleartext from the plaintext mirror, and
-calls the contract's callback function with the right signature shape.
+The contract's callback should accept `(uint256 reqId, uint256[] cleartexts,
+bytes decryptionProof)` and verify with:
+
+```solidity
+bytes32[] memory handles = new bytes32[](1);
+handles[0] = euint64.unwrap(_handle);
+FHE.checkSignatures(handles, abi.encode(cleartexts), decryptionProof);
+```
+
+Other helpers:
+
+- `decrypt(euint64 v) → uint64` — direct cleartext-host read (test convenience)
+- `userDecrypt(handle, user, contract, sig)` — for `FHE.allow`-granted handles
+- `publicDecrypt(handles)` returns `(uint256[] cleartexts, bytes proof)`
+- `signUserDecrypt(userPk, contract)` — EIP-712 sig for user-decrypt
+
+Hardhat's `awaitDecryptionOracle()` does this loop automatically. Foundry
+makes you do it explicitly — which is closer to what the real relayer
+does and easier to debug.
 
 ### Silent-failure path test (OZ Fabry — AP-018)
 
@@ -162,11 +190,13 @@ await fhevm.awaitDecryptionOracle();
 ```
 
 Three modes:
+
 - `network: mock` — cleartext mock, fastest.
 - `network: localhost` — local node with mock host, useful for frontend tests.
 - `network: sepolia` — real relayer, real KMS, slowest.
 
 Hardhat config snippet:
+
 ```ts
 // hardhat.config.ts
 import "@fhevm/hardhat-plugin";

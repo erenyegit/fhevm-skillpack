@@ -2,15 +2,21 @@
 pragma solidity ^0.8.27;
 
 import {FhevmTest} from "forge-fhevm/FhevmTest.sol";
-import {FHE, euint64, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
+import {FHE, euint64, externalEuint64, ebool} from "@fhevm/solidity/lib/FHE.sol";
+import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 import {ConfidentialGroupBuy, IConfidentialToken} from "../src/ConfidentialGroupBuy.sol";
 
 /// @notice Minimal mock confidential token for testing — implements only the
-///         two methods ConfidentialGroupBuy uses. Models the silent-failure
-///         path: transferring more than balance returns 0-handle.
-contract MockCToken is IConfidentialToken {
+///         two methods ConfidentialGroupBuy uses. Inherits ZamaEthereumConfig
+///         so the FHEVM host addresses are wired up at construction.
+/// @notice Mock confidential token with silent-failure semantics. Demonstrates
+///         AP-018: transferred amount is min(requested, balance) via FHE.select,
+///         not the requested amount.
+contract MockCToken is IConfidentialToken, ZamaEthereumConfig {
     mapping(address => euint64) public balances;
 
+    /// @dev Mint takes proof+enc directly — encrypter is the recipient, target
+    ///      is this token, so no cross-contract binding issue.
     function mint(address to, externalEuint64 enc, bytes calldata proof) external {
         euint64 amount = FHE.fromExternal(enc, proof);
         balances[to] = FHE.add(balances[to], amount);
@@ -18,43 +24,31 @@ contract MockCToken is IConfidentialToken {
         FHE.allow(balances[to], to);
     }
 
-    function confidentialTransferFrom(
-        address from,
-        address to,
-        externalEuint64 enc,
-        bytes calldata proof
-    ) external returns (euint64 transferred) {
-        euint64 amount = FHE.fromExternal(enc, proof);
-        // silent failure: if balance < amount, transferred = 0
-        // Note: real ERC-7984 emits effective amount; here we model the same.
-        // For test simplicity we treat the requested amount as transferred when
-        // balance is sufficient, otherwise 0 — using FHE.select.
-        // (Real silent-failure check would compare encrypted balance to amount;
-        //  here we use plaintext-shadow because mock has no on-chain balance check.)
-        balances[from] = FHE.sub(balances[from], amount);
-        balances[to] = FHE.add(balances[to], amount);
+    function transferFromValidated(address from, address to, euint64 amount) external returns (euint64 transferred) {
+        require(FHE.isSenderAllowed(amount), "no ACL");
+        // silent-failure clamp: transferred = min(amount, balances[from])
+        ebool sufficient = FHE.ge(balances[from], amount);
+        transferred = FHE.select(sufficient, amount, FHE.asEuint64(0));
+        balances[from] = FHE.sub(balances[from], transferred);
+        balances[to] = FHE.add(balances[to], transferred);
         FHE.allowThis(balances[from]);
         FHE.allowThis(balances[to]);
         FHE.allow(balances[from], from);
         FHE.allow(balances[to], to);
-        FHE.allowTransient(amount, msg.sender);
-        return amount;
+        FHE.allowTransient(transferred, msg.sender);
     }
 
-    function confidentialTransfer(
-        address to,
-        externalEuint64 enc,
-        bytes calldata proof
-    ) external returns (euint64 transferred) {
-        euint64 amount = FHE.fromExternal(enc, proof);
-        balances[msg.sender] = FHE.sub(balances[msg.sender], amount);
-        balances[to] = FHE.add(balances[to], amount);
+    function transferValidated(address to, euint64 amount) external returns (euint64 transferred) {
+        require(FHE.isSenderAllowed(amount), "no ACL");
+        ebool sufficient = FHE.ge(balances[msg.sender], amount);
+        transferred = FHE.select(sufficient, amount, FHE.asEuint64(0));
+        balances[msg.sender] = FHE.sub(balances[msg.sender], transferred);
+        balances[to] = FHE.add(balances[to], transferred);
         FHE.allowThis(balances[msg.sender]);
         FHE.allowThis(balances[to]);
         FHE.allow(balances[msg.sender], msg.sender);
         FHE.allow(balances[to], to);
-        FHE.allowTransient(amount, msg.sender);
-        return amount;
+        FHE.allowTransient(transferred, msg.sender);
     }
 }
 
@@ -66,25 +60,25 @@ contract ConfidentialGroupBuyTest is FhevmTest {
     address bob;
     address carol;
     uint256 internal constant CREATOR_PK = 0xCEA;
-    uint256 internal constant ALICE_PK   = 0xA11CE;
-    uint256 internal constant BOB_PK     = 0xB0B;
-    uint256 internal constant CAROL_PK   = 0xCA01;
+    uint256 internal constant ALICE_PK = 0xA11CE;
+    uint256 internal constant BOB_PK = 0xB0B;
+    uint256 internal constant CAROL_PK = 0xCA01;
 
-    uint64 constant GOAL = 1_000_000;       // 1.0 cUSD with 6 decimals
+    uint64 constant GOAL = 1_000_000; // 1.0 cUSD with 6 decimals
     uint256 constant DEADLINE_OFFSET = 7 days;
 
     function setUp() public override {
         super.setUp();
         creator = vm.addr(CREATOR_PK);
-        alice   = vm.addr(ALICE_PK);
-        bob     = vm.addr(BOB_PK);
-        carol   = vm.addr(CAROL_PK);
+        alice = vm.addr(ALICE_PK);
+        bob = vm.addr(BOB_PK);
+        carol = vm.addr(CAROL_PK);
         token = new MockCToken();
         vm.prank(creator);
         buy = new ConfidentialGroupBuy(token, GOAL, block.timestamp + DEADLINE_OFFSET);
         // mint cUSD balances
         _mint(alice, 500_000);
-        _mint(bob,   500_000);
+        _mint(bob, 500_000);
         _mint(carol, 200_000);
     }
 
@@ -94,7 +88,15 @@ contract ConfidentialGroupBuyTest is FhevmTest {
         token.mint(who, enc, proof);
     }
 
-    function _pledge(address who, uint256 pk, uint64 amt) internal {
+    function _pledge(
+        address who,
+        uint256,
+        /*pk*/
+        uint64 amt
+    )
+        internal
+    {
+        // Pledge: encryption targets the GROUP-BUY contract (it does fromExternal).
         (externalEuint64 enc, bytes memory proof) = encryptUint64(amt, who, address(buy));
         vm.prank(who);
         buy.pledge(enc, proof);
@@ -103,63 +105,71 @@ contract ConfidentialGroupBuyTest is FhevmTest {
     /// Test 1 — three backers pledge, encrypted total accumulates.
     function test_pledgesAccumulateEncrypted() public {
         _pledge(alice, ALICE_PK, 400_000);
-        _pledge(bob,   BOB_PK,   300_000);
+        _pledge(bob, BOB_PK, 300_000);
         _pledge(carol, CAROL_PK, 200_000);
 
         // Total handle exists; we don't decrypt it pre-finalisation.
         // Confirm individual contributions are decryptable by their owners.
         bytes memory aSig = signUserDecrypt(ALICE_PK, address(buy));
         vm.prank(alice);
-        uint256 aContrib = userDecrypt(
-            euint64.unwrap(buy.getMyContribution()), alice, address(buy), aSig
-        );
+        uint256 aContrib = userDecrypt(euint64.unwrap(buy.getMyContribution()), alice, address(buy), aSig);
         assertEq(aContrib, 400_000, "alice contribution");
+    }
+
+    /// @dev Drives the async-decryption flow manually using forge-fhevm's
+    ///      `publicDecrypt(bytes32[])` helper, which returns the cleartext
+    ///      array AND the assembled KMS proof. Then calls the contract's
+    ///      callback directly — same as a real relayer would.
+    function _finalize() internal returns (uint256 reqId, uint256[] memory cleartexts, bytes memory proof) {
+        buy.scheduleFinalization();
+        vm.roll(block.number + 13); // FINALITY_BLOCKS = 12
+        buy.requestFinalization();
+        reqId = buy.finalizationRequestId();
+        bytes32[] memory handles = new bytes32[](1);
+        handles[0] = buy.getTotalHandle();
+        (cleartexts, proof) = publicDecrypt(handles);
+        buy.finalizeCallback(reqId, cleartexts, proof);
     }
 
     /// Test 2 — goal reached → finalizeCallback flips goalMet=true.
     function test_goalMetTriggersFinalization() public {
         _pledge(alice, ALICE_PK, 500_000);
-        _pledge(bob,   BOB_PK,   500_000);
+        _pledge(bob, BOB_PK, 500_000);
 
         vm.warp(block.timestamp + DEADLINE_OFFSET + 1);
-        buy.scheduleFinalization();
-        vm.roll(block.number + 13);
-        buy.requestFinalization();
-        awaitDecryptionOracle();
+        _finalize();
 
         assertTrue(buy.finalized(), "must be finalized");
-        assertTrue(buy.goalMet(),   "goal must be met");
+        assertTrue(buy.goalMet(), "goal must be met");
         assertEq(buy.revealedTotal(), 1_000_000, "total reveal");
     }
 
     /// Test 3 — replay attack on finalizeCallback rejected.
     function test_replayCallbackRejected() public {
         _pledge(alice, ALICE_PK, 500_000);
-        _pledge(bob,   BOB_PK,   500_000);
+        _pledge(bob, BOB_PK, 500_000);
 
         vm.warp(block.timestamp + DEADLINE_OFFSET + 1);
-        buy.requestFinalization();
-        uint256 idBefore = buy.finalizationRequestId();
-        awaitDecryptionOracle();
+        (uint256 reqId, uint256[] memory cleartexts, bytes memory proof) = _finalize();
 
-        // Replay attempt: same id, same payload — must revert
-        bytes[] memory sigs = new bytes[](0);
-        vm.expectRevert(); // "done" or "bad id"
-        buy.finalizeCallback(idBefore, 1_000_000, sigs);
+        // Replay attempt: same id, same payload — must revert.
+        // (Both "bad id" and "done" indicate replay defense is working;
+        //  in our contract `finalizationRequestId = 0` is set first so the
+        //  id-mismatch fires before the `finalized` check.)
+        vm.expectRevert(bytes("bad id"));
+        buy.finalizeCallback(reqId, cleartexts, proof);
     }
 
     /// Test 4 — backer cannot decrypt another backer's contribution.
     function test_backerCannotDecryptOthers() public {
         _pledge(alice, ALICE_PK, 400_000);
-        _pledge(bob,   BOB_PK,   300_000);
+        _pledge(bob, BOB_PK, 300_000);
 
         // Bob trying to decrypt Alice's slot via getMyContribution from his own
         // address only returns HIS handle — NOT Alice's. ACL prevents lateral.
         bytes memory bSig = signUserDecrypt(BOB_PK, address(buy));
         vm.prank(bob);
-        uint256 bContrib = userDecrypt(
-            euint64.unwrap(buy.getMyContribution()), bob, address(buy), bSig
-        );
+        uint256 bContrib = userDecrypt(euint64.unwrap(buy.getMyContribution()), bob, address(buy), bSig);
         assertEq(bContrib, 300_000, "bob sees only his own");
         // (A direct user-decrypt of alice's handle from bob's signer would fail
         //  ACL — handled by the FHEVM relayer; not testable in mock without a
@@ -171,14 +181,11 @@ contract ConfidentialGroupBuyTest is FhevmTest {
     ///  no double-finalisation and goalMet is correctly false when under-funded.)
     function test_underFundedGoalMetFalse() public {
         _pledge(alice, ALICE_PK, 200_000);
-        _pledge(bob,   BOB_PK,   200_000);
+        _pledge(bob, BOB_PK, 200_000);
         _pledge(carol, CAROL_PK, 200_000);
 
         vm.warp(block.timestamp + DEADLINE_OFFSET + 1);
-        buy.scheduleFinalization();
-        vm.roll(block.number + 13);
-        buy.requestFinalization();
-        awaitDecryptionOracle();
+        _finalize();
 
         assertTrue(buy.finalized());
         assertFalse(buy.goalMet(), "600k < 1M goal");

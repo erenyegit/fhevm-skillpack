@@ -1,6 +1,7 @@
 # 05 — Async decryption (modern v0.11 pattern)
 
 ## Contents
+
 - Why async
 - Three-step flow
 - Full example with replay defense
@@ -54,15 +55,20 @@ contract Vault is ZamaEthereumConfig {
 
     function fulfillWithdraw(
         uint256 id,
-        uint64 amountClear,
-        bytes[] calldata signatures
+        uint256[] calldata cleartexts,
+        bytes calldata decryptionProof
     ) external {
         Request memory r = _pending[id];
         require(r.to != address(0), "unknown id");
         delete _pending[id];                          // (A) replay defense
 
-        FHE.checkSignatures(amountClear, signatures); // (B) KMS quorum
+        // (B) KMS quorum verification — actual signature is:
+        //   FHE.checkSignatures(bytes32[] handles, bytes abiEncodedCleartexts, bytes proof)
+        bytes32[] memory handles = new bytes32[](1);
+        handles[0] = euint64.unwrap(_balances[r.to]);
+        FHE.checkSignatures(handles, abi.encode(cleartexts), decryptionProof);
 
+        uint64 amountClear = uint64(cleartexts[0]);
         // (C) effects
         (bool ok,) = r.to.call{value: amountClear}("");
         require(ok, "transfer fail");
@@ -77,7 +83,7 @@ external effects.** Violating any is a known bug class.
 
 ## Two-step finality delay (reorg defense)
 
-For *information-as-product* releases (auction winner, sealed-bid reveal,
+For _information-as-product_ releases (auction winner, sealed-bid reveal,
 prediction-market outcome), the relayer can complete its loop within a
 block or two — but a reorg can still flip the underlying chain state.
 Losers who already decrypted retain the plaintext.
