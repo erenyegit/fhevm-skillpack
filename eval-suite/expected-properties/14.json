@@ -1,0 +1,14 @@
+{
+  "name": "14-confidential-erc7984-mint",
+  "must_include_patterns": [
+    "euint64",
+    "FHE.select",
+    "_allowances",
+    "confidentialTransferFrom",
+    "confidentialApprove",
+    "allowTransient"
+  ],
+  "must_not_include_patterns": ["TFHE", "if (FHE.", "euint256"],
+  "must_pass_lint": true,
+  "must_compile": true
+}

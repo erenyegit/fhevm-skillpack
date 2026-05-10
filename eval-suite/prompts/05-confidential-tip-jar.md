@@ -1,0 +1,1 @@
+Write a `ConfidentialTipJar` contract: any address can `tip(externalEuint64, bytes proof)` an encrypted amount in a confidential token. The owner can call `revealTotal()` to mark the encrypted total publicly decryptable. Each tipper retains the ability to decrypt their own cumulative tipped amount via `getMyTipTotal() returns (euint64)`.

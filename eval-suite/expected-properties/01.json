@@ -1,0 +1,17 @@
+{
+  "name": "01-confidential-counter",
+  "must_include_patterns": [
+    "@fhevm/solidity/lib/FHE.sol",
+    "ZamaEthereumConfig",
+    "FHE.fromExternal",
+    "FHE.allowThis",
+    "FHE.allow"
+  ],
+  "must_not_include_patterns": [
+    "TFHE",
+    "fhevm/lib/TFHE.sol",
+    ".decrypt()"
+  ],
+  "must_pass_lint": true,
+  "must_compile": true
+}

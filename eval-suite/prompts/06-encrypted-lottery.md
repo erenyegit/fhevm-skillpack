@@ -1,0 +1,1 @@
+Write a `ConfidentialLottery`: players buy tickets via `buy(externalEuint64 encNumberGuess, bytes proof)` paying a fixed plaintext fee. After `endTime`, the contract draws a random encrypted winner using `FHE.randEuint64()`. Use the async-decryption pattern with delete-before-effects to reveal the winning number and award the pot to the matching player.

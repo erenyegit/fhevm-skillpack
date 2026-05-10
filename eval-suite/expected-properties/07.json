@@ -1,0 +1,7 @@
+{
+  "name": "07-private-dca-engine",
+  "must_include_patterns": ["FHE.select", "FHE.ge", "allowTransient", "TICK_INTERVAL"],
+  "must_not_include_patterns": ["TFHE"],
+  "must_pass_lint": true,
+  "must_compile": true
+}

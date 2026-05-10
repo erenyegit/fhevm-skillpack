@@ -1,0 +1,7 @@
+{
+  "name": "05-confidential-tip-jar",
+  "must_include_patterns": ["FHE.add", "FHE.allowThis", "makePubliclyDecryptable", "getMyTipTotal"],
+  "must_not_include_patterns": ["TFHE"],
+  "must_pass_lint": true,
+  "must_compile": true
+}

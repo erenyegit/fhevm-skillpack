@@ -1,0 +1,7 @@
+{
+  "name": "11-confidential-savings-vault",
+  "must_include_patterns": ["FHE.select", "withdraw", "deposit", "FHE.allowThis"],
+  "must_not_include_patterns": ["TFHE", "if (FHE."],
+  "must_pass_lint": true,
+  "must_compile": true
+}

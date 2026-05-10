@@ -1,0 +1,7 @@
+{
+  "name": "09-encrypted-oracle",
+  "must_include_patterns": ["subscriptionExpiry", "FHE.allow", "subscribe"],
+  "must_not_include_patterns": ["TFHE"],
+  "must_pass_lint": true,
+  "must_compile": true
+}

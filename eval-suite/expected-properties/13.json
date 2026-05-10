@@ -1,0 +1,7 @@
+{
+  "name": "13-encrypted-tip-with-decrypt",
+  "must_include_patterns": ["FHE.add", "delete", "checkSignatures", "submitScore"],
+  "must_not_include_patterns": ["TFHE", ".decrypt()"],
+  "must_pass_lint": true,
+  "must_compile": true
+}

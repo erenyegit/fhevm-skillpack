@@ -1,0 +1,14 @@
+{
+  "name": "10-private-group-buy",
+  "must_include_patterns": [
+    "ConfidentialGroupBuy",
+    "FHE.makePubliclyDecryptable",
+    "delete",
+    "FHE.checkSignatures",
+    "finalized = true"
+  ],
+  "must_not_include_patterns": ["TFHE", ".decrypt()"],
+  "must_pass_lint": true,
+  "must_compile": true,
+  "must_pass_tests": ["happy_path", "replay_defense", "per_backer_decrypt_isolation"]
+}

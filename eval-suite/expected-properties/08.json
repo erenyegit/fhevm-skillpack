@@ -1,0 +1,7 @@
+{
+  "name": "08-confidential-payroll",
+  "must_include_patterns": ["mapping(address => euint64)", "FHE.fromExternal", "FHE.allowThis", "FHE.allow"],
+  "must_not_include_patterns": ["TFHE", "euint256"],
+  "must_pass_lint": true,
+  "must_compile": true
+}

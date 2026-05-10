@@ -1,0 +1,1 @@
+Build a paid `EncryptedOracle` contract. A trusted oracle account posts an encrypted price via `publish(externalEuint64, bytes proof)`. Subscribers pay 0.01 ether per month to `subscribe()`. Subscribers can fetch the encrypted price via `getPrice() returns (euint64)` and decrypt it off-chain. Non-subscribers get a revert. Re-grant ACL on every publish.

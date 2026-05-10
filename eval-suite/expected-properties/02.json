@@ -1,0 +1,12 @@
+{
+  "name": "02-private-token-transfer",
+  "must_include_patterns": [
+    "euint64",
+    "FHE.select",
+    "FHE.allowThis",
+    "confidentialTransfer"
+  ],
+  "must_not_include_patterns": ["TFHE", "if (FHE.", "require(FHE.", "euint256 "],
+  "must_pass_lint": true,
+  "must_compile": true
+}

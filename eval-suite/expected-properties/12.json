@@ -1,0 +1,7 @@
+{
+  "name": "12-private-prediction-market",
+  "must_include_patterns": ["FHE.select", "FINALITY", "buy", "side"],
+  "must_not_include_patterns": ["TFHE"],
+  "must_pass_lint": true,
+  "must_compile": true
+}

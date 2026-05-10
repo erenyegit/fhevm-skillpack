@@ -1,0 +1,17 @@
+{
+  "name": "fhevm-skillpack-mcp",
+  "version": "0.1.0",
+  "description": "MCP server exposing fhevm-skillpack tools to AI agents (Claude Code, Cursor, Windsurf)",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "fhevm-skillpack-mcp": "./server.mjs"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "03-sealed-bid-bid",
+  "must_include_patterns": ["FHE.select", "FHE.gt", "eaddress", "_highestBid"],
+  "must_not_include_patterns": ["if (FHE.", "TFHE"],
+  "must_pass_lint": true,
+  "must_compile": true,
+  "must_pass_tests": ["effective_amount_used"]
+}

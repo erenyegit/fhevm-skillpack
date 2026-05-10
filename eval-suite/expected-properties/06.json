@@ -1,0 +1,7 @@
+{
+  "name": "06-encrypted-lottery",
+  "must_include_patterns": ["FHE.randEuint64", "delete", "checkSignatures"],
+  "must_not_include_patterns": ["TFHE", ".decrypt()"],
+  "must_pass_lint": true,
+  "must_compile": true
+}

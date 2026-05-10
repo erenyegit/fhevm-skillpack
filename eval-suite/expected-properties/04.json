@@ -1,0 +1,7 @@
+{
+  "name": "04-encrypted-vote-tally",
+  "must_include_patterns": ["euint8", "euint32", "hasVoted", "makePubliclyDecryptable", "FINALITY"],
+  "must_not_include_patterns": ["if (FHE.", "TFHE"],
+  "must_pass_lint": true,
+  "must_compile": true
+}
