@@ -394,7 +394,7 @@ allowing ACL grant via untrusted target.
 - `references/01-types-cheatsheet.md` — every encrypted type, when to use, when NOT to
 - `references/02-operations-table.md` — full FHE op table + HCU costs by bit-width
 - `references/03-acl-decision-tree.md` — `allow` / `allowThis` / `allowTransient` / `makePubliclyDecryptable`
-- `references/04-anti-patterns-catalog.md` — all 22 anti-patterns with bad/good code
+- `references/04-anti-patterns-catalog.md` — all 23 anti-patterns with bad/good code
 - `references/05-async-decryption.md` — request→sign→callback pattern, replay defense, finality delay
 - `references/06-input-proofs.md` — `externalEuintXX` + `inputProof`, frontend binding, 3rd-party risk
 - `references/07-testing-frameworks.md` — Foundry/forge-fhevm primary, Hardhat secondary
