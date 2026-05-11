@@ -52,37 +52,37 @@ agent tooling for FHEVM is weakest:
 
 ## What's inside
 
-| Path | What |
-|---|---|
-| `SKILL.md` | Anthropic-spec skill (≤ 500 lines) — 7 critical directives, decision tree, op/ACL/async/input quickrefs, top-10 anti-patterns, reference index |
-| `references/01..09.md` | Per-domain references: types, ops + HCU table, ACL decision tree, **22-rule anti-pattern catalog**, async-decryption, input proofs, testing (Foundry primary, Hardhat secondary), frontend, OpenZeppelin Fabry security checklist (internalized) |
-| `references/10-recipes/` | Six recipes: ERC-7984 token, sealed-bid auction, confidential vote, encrypted oracle, confidential DCA engine, confidential group-buy |
-| `tools/fhe-lint.mjs` | 22-rule AST-aware linter, terminal/JSON/markdown output, `--self-test` |
-| `tools/fhe-doctor.mjs` | Auto-fix for AP-001/002/004/005/007 (mechanical), report for the rest |
-| `tools/fhe-eval.mjs` | Eval runner with `@anthropic-ai/sdk` integration |
-| `mcp-server/` | MCP stdio server with 4 tools |
-| `eval-suite/` | 14 prompts + expected-properties JSON + 5 agent runners + REPORT.md |
-| `packages/foundry/src/ConfidentialGroupBuy.sol` + tests + script | Demo contract on top of the template |
-| `demo/frontend-page.tsx` | Drop-in `/group-buy` route for the Next.js app |
-| `demo/VIDEO-SCRIPT.md` | 3-minute shooting script (cue cards + voice-over) |
+| Path                                                             | What                                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SKILL.md`                                                       | Anthropic-spec skill (≤ 500 lines) — 7 critical directives, decision tree, op/ACL/async/input quickrefs, top-10 anti-patterns, reference index                                                                                                   |
+| `references/01..09.md`                                           | Per-domain references: types, ops + HCU table, ACL decision tree, **22-rule anti-pattern catalog**, async-decryption, input proofs, testing (Foundry primary, Hardhat secondary), frontend, OpenZeppelin Fabry security checklist (internalized) |
+| `references/10-recipes/`                                         | Six recipes: ERC-7984 token, sealed-bid auction, confidential vote, encrypted oracle, confidential DCA engine, confidential group-buy                                                                                                            |
+| `tools/fhe-lint.mjs`                                             | 22-rule AST-aware linter, terminal/JSON/markdown output, `--self-test`                                                                                                                                                                           |
+| `tools/fhe-doctor.mjs`                                           | Auto-fix for AP-001/002/004/005/007 (mechanical), report for the rest                                                                                                                                                                            |
+| `tools/fhe-eval.mjs`                                             | Eval runner with `@anthropic-ai/sdk` integration                                                                                                                                                                                                 |
+| `mcp-server/`                                                    | MCP stdio server with 4 tools                                                                                                                                                                                                                    |
+| `eval-suite/`                                                    | 14 prompts + expected-properties JSON + 5 agent runners + REPORT.md                                                                                                                                                                              |
+| `packages/foundry/src/ConfidentialGroupBuy.sol` + tests + script | Demo contract on top of the template                                                                                                                                                                                                             |
+| `demo/frontend-page.tsx`                                         | Drop-in `/group-buy` route for the Next.js app                                                                                                                                                                                                   |
+| `demo/VIDEO-SCRIPT.md`                                           | 3-minute shooting script (cue cards + voice-over)                                                                                                                                                                                                |
 
 ## The unique edges (vs existing FHEVM skill submissions)
 
 > Compared to the existing single-file regex-linter approach in the
 > ecosystem:
 
-| Dimension | Existing approach | fhevm-skillpack |
-|---|---|---|
-| SKILL.md structure | Single 14-section file | Multi-file with `references/` (matches Anthropic spec) |
-| Linter mechanism | Regex line-scanner | Hybrid AST-aware (function-scope lookbacks, lookaheads, multi-line context) |
-| Anti-pattern coverage | 12–13 rules | **22 rules with bidirectional fixtures + 22/22 self-test** |
-| Auto-fix | None | 5 mechanical rewrites (TFHE→FHE, allowThis insert, type narrow, etc.) |
-| MCP integration | None | **4-tool MCP server** (lookup, validate, fix, compile) |
-| Recipes | 3 generic templates | **6 finance-focused recipes**, demo-grade |
-| Security guide | Brief mentions | **Full OpenZeppelin Fabry checklist** internalised, 10 numbered vulnerabilities each mapped to AP-* IDs |
-| Demo | Mock-mode tests only | Foundry + cleartext-host tests + Sepolia deploy script + working frontend page |
-| Eval evidence | None | 14 prompts × 5 agents matrix, real Claude Code numbers via SDK |
-| Stack alignment | Hardhat-only | Foundry-primary (matches official template), Hardhat documented as secondary |
+| Dimension             | Existing approach      | fhevm-skillpack                                                                                          |
+| --------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| SKILL.md structure    | Single 14-section file | Multi-file with `references/` (matches Anthropic spec)                                                   |
+| Linter mechanism      | Regex line-scanner     | Hybrid AST-aware (function-scope lookbacks, lookaheads, multi-line context)                              |
+| Anti-pattern coverage | 12–13 rules            | **22 rules with bidirectional fixtures + 22/22 self-test**                                               |
+| Auto-fix              | None                   | 5 mechanical rewrites (TFHE→FHE, allowThis insert, type narrow, etc.)                                    |
+| MCP integration       | None                   | **4-tool MCP server** (lookup, validate, fix, compile)                                                   |
+| Recipes               | 3 generic templates    | **6 finance-focused recipes**, demo-grade                                                                |
+| Security guide        | Brief mentions         | **Full OpenZeppelin Fabry checklist** internalised, 10 numbered vulnerabilities each mapped to AP-\* IDs |
+| Demo                  | Mock-mode tests only   | Foundry + cleartext-host tests + Sepolia deploy script + working frontend page                           |
+| Eval evidence         | None                   | 14 prompts × 5 agents matrix, real Claude Code numbers via SDK                                           |
+| Stack alignment       | Hardhat-only           | Foundry-primary (matches official template), Hardhat documented as secondary                             |
 
 ## How to use
 
@@ -126,10 +126,13 @@ For the demo contract walkthrough see `demo/VIDEO-SCRIPT.md`.
 
 ## Repo & demo
 
-- GitHub: https://github.com/erenyegit/fhevm-skillpack
-- Demo video: https://youtu.be/<TBD>
-- Contract on Sepolia: `<TBD — paste address after deploy>`
-- Etherscan: `<TBD>`
+- **GitHub:** https://github.com/erenyegit/fhevm-skillpack
+- **Demo video:** https://youtu.be/<TBD — paste link after upload>
+- **Sepolia deployment:**
+  - `ConfidentialGroupBuy` → [`0x4441CC7bF0bf4b7728e43Fee020D3128D67878a9`](https://sepolia.etherscan.io/address/0x4441CC7bF0bf4b7728e43Fee020D3128D67878a9) (verified)
+  - `MockCToken` (cUSD) → [`0x9Ab7912a600049De984E4C79AfC90E34eE17c08f`](https://sepolia.etherscan.io/address/0x9Ab7912a600049De984E4C79AfC90E34eE17c08f) (verified)
+  - Goal: 1,000,000 base units (= 1.0 cUSD with 6 decimals)
+  - Deadline: ~14 days from deploy
 
 ## License
 

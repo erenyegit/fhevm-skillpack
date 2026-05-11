@@ -18,9 +18,11 @@ import { bytesToHex } from "viem";
 import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
 import { ConfidentialGroupBuy } from "~~/contracts/ConfidentialGroupBuy";
 
-// Replace with the deployed cUSD token address (the one passed to the
-// ConfidentialGroupBuy constructor). MUST match — proofs bind to it.
-const TOKEN_ADDRESS = (process.env.NEXT_PUBLIC_CUSD_ADDRESS ?? "0x0000000000000000000000000000000000000000") as `0x${string}`;
+// Sepolia deployment addresses. Override via env vars if redeploying.
+const TOKEN_ADDRESS = (process.env.NEXT_PUBLIC_CUSD_ADDRESS
+  ?? "0x9Ab7912a600049De984E4C79AfC90E34eE17c08f") as `0x${string}`;
+const GROUPBUY_ADDRESS = (process.env.NEXT_PUBLIC_GROUPBUY_ADDRESS
+  ?? "0x4441CC7bF0bf4b7728e43Fee020D3128D67878a9") as `0x${string}`;
 import { RainbowKitCustomConnectButton } from "~~/components/helper/RainbowKitCustomConnectButton";
 import { deploymentFor } from "~~/utils/contract";
 

@@ -5,52 +5,7 @@ import {FhevmTest} from "forge-fhevm/FhevmTest.sol";
 import {FHE, euint64, externalEuint64, ebool} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 import {ConfidentialGroupBuy, IConfidentialToken} from "../src/ConfidentialGroupBuy.sol";
-
-/// @notice Minimal mock confidential token for testing — implements only the
-///         two methods ConfidentialGroupBuy uses. Inherits ZamaEthereumConfig
-///         so the FHEVM host addresses are wired up at construction.
-/// @notice Mock confidential token with silent-failure semantics. Demonstrates
-///         AP-018: transferred amount is min(requested, balance) via FHE.select,
-///         not the requested amount.
-contract MockCToken is IConfidentialToken, ZamaEthereumConfig {
-    mapping(address => euint64) public balances;
-
-    /// @dev Mint takes proof+enc directly — encrypter is the recipient, target
-    ///      is this token, so no cross-contract binding issue.
-    function mint(address to, externalEuint64 enc, bytes calldata proof) external {
-        euint64 amount = FHE.fromExternal(enc, proof);
-        balances[to] = FHE.add(balances[to], amount);
-        FHE.allowThis(balances[to]);
-        FHE.allow(balances[to], to);
-    }
-
-    function transferFromValidated(address from, address to, euint64 amount) external returns (euint64 transferred) {
-        require(FHE.isSenderAllowed(amount), "no ACL");
-        // silent-failure clamp: transferred = min(amount, balances[from])
-        ebool sufficient = FHE.ge(balances[from], amount);
-        transferred = FHE.select(sufficient, amount, FHE.asEuint64(0));
-        balances[from] = FHE.sub(balances[from], transferred);
-        balances[to] = FHE.add(balances[to], transferred);
-        FHE.allowThis(balances[from]);
-        FHE.allowThis(balances[to]);
-        FHE.allow(balances[from], from);
-        FHE.allow(balances[to], to);
-        FHE.allowTransient(transferred, msg.sender);
-    }
-
-    function transferValidated(address to, euint64 amount) external returns (euint64 transferred) {
-        require(FHE.isSenderAllowed(amount), "no ACL");
-        ebool sufficient = FHE.ge(balances[msg.sender], amount);
-        transferred = FHE.select(sufficient, amount, FHE.asEuint64(0));
-        balances[msg.sender] = FHE.sub(balances[msg.sender], transferred);
-        balances[to] = FHE.add(balances[to], transferred);
-        FHE.allowThis(balances[msg.sender]);
-        FHE.allowThis(balances[to]);
-        FHE.allow(balances[msg.sender], msg.sender);
-        FHE.allow(balances[to], to);
-        FHE.allowTransient(transferred, msg.sender);
-    }
-}
+import {MockCToken} from "../src/MockCToken.sol";
 
 contract ConfidentialGroupBuyTest is FhevmTest {
     ConfidentialGroupBuy buy;
