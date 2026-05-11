@@ -332,6 +332,34 @@ export function Show(decryptedAmount: bigint) {
     }`),
   },
 
+  "AP-024": {
+    bad: wrap(`    euint64 private _total;
+    uint256 public scheduledRevealBlock;
+    function pledge(externalEuint64 enc, bytes calldata proof) external {
+        euint64 a = FHE.fromExternal(enc, proof);
+        _total = FHE.add(_total, a);
+        FHE.allowThis(_total);
+    }
+    function scheduleReveal() external { scheduledRevealBlock = block.number; }
+    function reveal() external {
+        require(block.number >= scheduledRevealBlock + 12);
+        FHE.makePubliclyDecryptable(_total);
+    }`),
+    good: wrap(`    euint64 private _total;
+    uint256 public scheduledRevealBlock;
+    function pledge(externalEuint64 enc, bytes calldata proof) external {
+        require(scheduledRevealBlock == 0, "scheduled");
+        euint64 a = FHE.fromExternal(enc, proof);
+        _total = FHE.add(_total, a);
+        FHE.allowThis(_total);
+    }
+    function scheduleReveal() external { scheduledRevealBlock = block.number; }
+    function reveal() external {
+        require(block.number >= scheduledRevealBlock + 12);
+        FHE.makePubliclyDecryptable(_total);
+    }`),
+  },
+
   "AP-023": {
     bad: wrap(`    euint64 private _total;
     function reveal() external {

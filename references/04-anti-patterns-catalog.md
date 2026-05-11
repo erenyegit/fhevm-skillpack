@@ -1,4 +1,4 @@
-# 04 — Anti-patterns catalog (23 rules)
+# 04 — Anti-patterns catalog (24 rules)
 
 Every rule has a stable ID (`AP-XXX`) used by the bundled linter. Rules are
 grouped by category. Severity legend: 🔴 error · 🟡 warning · 🔵 info.
@@ -9,7 +9,7 @@ grouped by category. Severity legend: 🔴 error · 🟡 warning · 🔵 info.
 - AP-006 to AP-010: Inputs, types, division, overflow, callback replay
 - AP-011 to AP-015: Views, persistent allow, hashing, frontend instance, signature storage
 - AP-016 to AP-020: URL leak, request IDs, silent transfers, reorg, AA transient
-- AP-021 to AP-023: 3rd-party encryption replay, arbitrary execute, zero-handle silent lock
+- AP-021 to AP-024: 3rd-party encryption replay, arbitrary execute, zero-handle silent lock, post-schedule mutation desync
 
 ---
 
@@ -396,6 +396,59 @@ encrypts and binds to, (b) consume the tuple via an intermediate
 captured in the proof.
 
 ---
+
+## AP-024 🔴 Mutating decryption-source state after scheduling reveal
+
+**Category:** Async decryption / state lifecycle
+
+❌ Bad
+
+```solidity
+function pledge(externalEuint64 enc, bytes calldata proof) external {
+    // No guard for scheduled-reveal!
+    euint64 a = FHE.fromExternal(enc, proof);
+    _totalRaised = FHE.add(_totalRaised, a);   // changes ciphertext id
+    FHE.allowThis(_totalRaised);
+}
+function reveal() external {
+    require(block.number >= _scheduled + 12);
+    FHE.makePubliclyDecryptable(_totalRaised); // request fired with handle H1
+}
+// Later: a user pledges → _totalRaised becomes H2 (different ciphertext).
+// Relayer is still working on H1, calls back with H1's plaintext, but the
+// callback's checkSignatures uses storage's H2 → revert (or worse: callback
+// just never fires because H1 was never re-grant'd as decryptable). UX:
+// "request pending" forever, no revert, no retry path.
+```
+
+⚠️ Why: every `FHE.add`/`FHE.sub`/`FHE.mul`/`FHE.select` that writes to a
+storage slot produces a **new ciphertext id** for that slot. The handle
+the relayer is decrypting is a snapshot taken at request time. If the
+contract storage handle moves, the request becomes orphaned.
+
+We hit this hypothesis live during the fhevm-skillpack demo run — although
+the actual cause turned out to be relayer latency, the design hardening
+is real and now codified.
+
+✅ Good — gate every state-mutating function with a "no pending decryption"
+check:
+
+```solidity
+function pledge(externalEuint64 enc, bytes calldata proof) external {
+    require(scheduledRevealBlock == 0, "FinalizationScheduled");
+    // ... rest
+}
+```
+
+Or, for designs that need to reset and re-pledge after a failed reveal,
+combine with a finalisation flag:
+
+```solidity
+require(scheduledRevealBlock == 0 || finalized, "pending decrypt");
+```
+
+The second variant lets users re-engage after the callback completes (or
+after an admin reset, if the contract has one).
 
 ## AP-023 🔴 Zero-handle sent to decryption oracle
 

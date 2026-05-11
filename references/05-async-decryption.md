@@ -123,3 +123,11 @@ For mainnet use `FINALITY_BLOCKS = 64` (post-merge finality boundary).
 - **Forgetting to grant ACL before requesting decryption.** The handle must
   have `allow(_, address(this))` or `makePubliclyDecryptable` set or the
   relayer cannot read it.
+
+## Relayer SLA
+
+The Sepolia FHEVM relayer typically responds in **30 s – 2 min**, but there
+is no formal SLA. We have observed >20-min latency during periods of
+relayer degradation. **Design UX around this:** show timeout warnings,
+expose a manual retry button (where contract semantics allow — see AP-024),
+and poll status rather than assuming a callback is imminent.

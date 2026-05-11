@@ -12,7 +12,7 @@ description: |
   using ZK instead of FHE, branching with if/else on encrypted values, calling
   deprecated TFHE.decrypt(), forgetting FHE.allowThis after assignment, treating
   encrypted overflow like Solidity 0.8+ checked arithmetic. Ships an AST-aware
-  linter, auto-fix tool, MCP server, and 23 anti-pattern catalog.
+  linter, auto-fix tool, MCP server, and 24 anti-pattern catalog.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 keywords: fhevm, zama, fhe, confidential, encrypted, euint, ebool, ciphertext, acl, sepolia, foundry, hardhat, forge-fhevm
 ---
@@ -97,7 +97,7 @@ User says... → Read this reference file:
 
 Always run `pnpm lint:fhe` (this skill's bundled AST linter) on any
 modified `.sol` file before declaring work complete. If issues surface, run
-`pnpm fix:fhe` for auto-fix where possible (8 of 23 rules).
+`pnpm fix:fhe` for auto-fix where possible (8 of 24 rules).
 
 </decision_tree>
 
@@ -358,7 +358,7 @@ Anti-patterns (full list in `references/08-relayer-sdk-frontend.md`):
 
 <top_anti_patterns>
 
-The 10 most common AI failure modes (full 23-rule catalog in
+The 10 most common AI failure modes (full 24-rule catalog in
 `references/04-anti-patterns-catalog.md` — bundled linter rule IDs in brackets):
 
 1. **[AP-001]** `if (FHE.gt(a, b)) { x = a; } else { x = b; }` → use
@@ -378,6 +378,11 @@ The 10 most common AI failure modes (full 23-rule catalog in
     assigned — the zero handle `bytes32(0)` is a sentinel; KMS ignores it,
     callback never fires, contract locks. Guard with `FHE.isInitialized` or
     seed the slot in the constructor.
+12. **[AP-024]** State-mutating function (pledge/transfer/add) runs after
+    `scheduleReveal` / `makePubliclyDecryptable` — every `FHE.add` produces a
+    new ciphertext id, orphaning the relayer's pending request. Gate with
+    `require(scheduledRevealBlock == 0, "FinalizationScheduled");` early in
+    every mutator.
 
 The remaining 12 cover: returning encrypted from `view` fns, persistent allow
 to helpers, hashing `(value, proof)` for replay defense, `createInstance`
@@ -394,7 +399,7 @@ allowing ACL grant via untrusted target.
 - `references/01-types-cheatsheet.md` — every encrypted type, when to use, when NOT to
 - `references/02-operations-table.md` — full FHE op table + HCU costs by bit-width
 - `references/03-acl-decision-tree.md` — `allow` / `allowThis` / `allowTransient` / `makePubliclyDecryptable`
-- `references/04-anti-patterns-catalog.md` — all 23 anti-patterns with bad/good code
+- `references/04-anti-patterns-catalog.md` — all 24 anti-patterns with bad/good code
 - `references/05-async-decryption.md` — request→sign→callback pattern, replay defense, finality delay
 - `references/06-input-proofs.md` — `externalEuintXX` + `inputProof`, frontend binding, 3rd-party risk
 - `references/07-testing-frameworks.md` — Foundry/forge-fhevm primary, Hardhat secondary
@@ -408,7 +413,7 @@ allowing ACL grant via untrusted target.
   - `confidential-dca-engine.md`
   - `confidential-group-buy.md` ← used in the demo
 
-Bundled tools: `tools/fhe-lint.mjs` (AST linter, 23 rules), `tools/fhe-doctor.mjs`
+Bundled tools: `tools/fhe-lint.mjs` (AST linter, 24 rules), `tools/fhe-doctor.mjs`
 (auto-fix, 8 rules), `tools/fhe-eval.mjs` (14-prompt eval suite),
 `mcp-server/` (MCP tools: `lookup_fhe_op`, `validate_snippet`, `suggest_fix`,
 `compile_test`).

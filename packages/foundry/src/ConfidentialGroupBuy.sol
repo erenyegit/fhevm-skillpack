@@ -71,8 +71,14 @@ contract ConfidentialGroupBuy is ZamaEthereumConfig {
     /// would mismatch the new caller, and the token's transfer would attribute the
     /// debit to the new msg.sender (the attacker), not the original encrypter.
     function pledge(externalEuint64 encAmount, bytes calldata proof) external {
-        require(block.timestamp < deadline, "deadline passed");
+        // AP-024 defense: once a reveal is scheduled, mutating _totalRaised
+        // would change its ciphertext id and silently desync the relayer's
+        // pending decryption. Lock pledges from `scheduleFinalization` onward.
+        // (Checked first because schedule implies deadline-passed; this gives
+        //  callers a more specific error than the generic deadline check.)
+        require(scheduledRevealBlock == 0, "FinalizationScheduled");
         require(!finalized, "finalized");
+        require(block.timestamp < deadline, "deadline passed");
 
         // Validate the encrypted input ourselves. Encryption MUST target this
         // contract's address on the frontend.

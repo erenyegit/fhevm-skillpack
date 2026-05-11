@@ -336,6 +336,36 @@ const RULES = [
     fix: "See references/06-input-proofs.md — bind via encrypted-sender check, EOA signature, or single-shot proof.",
   },
   {
+    id: "AP-024",
+    severity: "error",
+    message:
+      "State-mutating function may run AFTER scheduleReveal/makePubliclyDecryptable — would desync the pending KMS request from the new ciphertext handle",
+    detect: (line, ctx) => {
+      // Trigger only on function declarations
+      const fn = line.match(/^\s*function\s+(\w+)\s*\(/);
+      if (!fn) return false;
+      const name = fn[1];
+      // Skip the schedule/finalize/callback functions themselves
+      if (/^(schedule|request|fulfill|finalize)/i.test(name)) return false;
+      const body = bodyOfFunction(ctx);
+      // Mutation = body assigns to a storage handle via FHE.add/sub/mul/select
+      const mutates = /\b\w+\s*=\s*FHE\.(add|sub|mul|select|fromExternal)\s*\(/.test(body);
+      if (!mutates) return false;
+      // Gate must be present somewhere in the file: makePubliclyDecryptable
+      // (otherwise no decryption schedule exists; AP-024 doesn't apply).
+      if (!/FHE\.makePubliclyDecryptable\s*\(/.test(ctx.fileText)) return false;
+      // OK: function has a guard like require(scheduled* == 0) or require(!finalized)
+      // or require(<pendingId> == 0) early in the body.
+      const hasGuard =
+        /require\s*\(\s*(scheduledReveal\w*|\w*[Ss]cheduled\w*)\s*==\s*0/.test(body) ||
+        /require\s*\(\s*!\s*\w*[Ff]inal(ized|ised)/.test(body) ||
+        /require\s*\(\s*\w*[Pp]ending\w*\s*==\s*0/.test(body) ||
+        /require\s*\(\s*\w*[Rr]equestId\s*==\s*0/.test(body);
+      return !hasGuard;
+    },
+    fix: 'Add early guard: `require(scheduledRevealBlock == 0, "FinalizationScheduled");` (or `require(!finalized);`).',
+  },
+  {
     id: "AP-023",
     severity: "error",
     message:

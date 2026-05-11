@@ -114,7 +114,7 @@ estimate ahead of time using the cost matrix in
 ## Pre-deploy sweep
 
 ```bash
-pnpm lint:fhe                  # AST linter, 23 rules
+pnpm lint:fhe                  # AST linter, 24 rules
 pnpm fix:fhe -- --dry          # auto-fix preview
 pnpm contracts:test            # forge test -vv
 pnpm contracts:test --gas-report

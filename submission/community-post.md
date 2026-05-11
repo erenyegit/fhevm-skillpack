@@ -10,7 +10,7 @@
 
 `fhevm-skillpack` is an Anthropic-spec Skill (multi-file `SKILL.md` +
 `references/`) that teaches AI coding agents to write FHEVM smart
-contracts correctly on the first try. It ships with a 23-rule AST-aware
+contracts correctly on the first try. It ships with a 24-rule AST-aware
 linter, an auto-fix tool, an MCP server, six finance-focused recipes, and
 a 14-prompt evaluation suite measuring agent first-pass accuracy with the
 skill loaded vs without.
@@ -35,8 +35,8 @@ agent tooling for FHEVM is weakest:
 
 1. **Multi-file progressive disclosure** matching the Anthropic Skills
    spec (single-file SKILL.md is a 2024 anti-pattern).
-2. **AST-aware linter** that goes beyond regex — 23 rules, all with
-   bidirectional fixtures and a passing self-test (23/23).
+2. **AST-aware linter** that goes beyond regex — 24 rules, all with
+   bidirectional fixtures and a passing self-test (24/24).
 3. **Auto-fix mode** for the 5 mechanical anti-patterns (TFHE → FHE
    migration, missing `allowThis`, `euint256` → `euint64` narrowing,
    if/else → `FHE.select`, `unwrap()` cast warnings).
@@ -55,9 +55,9 @@ agent tooling for FHEVM is weakest:
 | Path                                                             | What                                                                                                                                                                                                                                             |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `SKILL.md`                                                       | Anthropic-spec skill (≤ 500 lines) — 7 critical directives, decision tree, op/ACL/async/input quickrefs, top-10 anti-patterns, reference index                                                                                                   |
-| `references/01..09.md`                                           | Per-domain references: types, ops + HCU table, ACL decision tree, **23-rule anti-pattern catalog**, async-decryption, input proofs, testing (Foundry primary, Hardhat secondary), frontend, OpenZeppelin Fabry security checklist (internalized) |
+| `references/01..09.md`                                           | Per-domain references: types, ops + HCU table, ACL decision tree, **24-rule anti-pattern catalog**, async-decryption, input proofs, testing (Foundry primary, Hardhat secondary), frontend, OpenZeppelin Fabry security checklist (internalized) |
 | `references/10-recipes/`                                         | Six recipes: ERC-7984 token, sealed-bid auction, confidential vote, encrypted oracle, confidential DCA engine, confidential group-buy                                                                                                            |
-| `tools/fhe-lint.mjs`                                             | 23-rule AST-aware linter, terminal/JSON/markdown output, `--self-test`                                                                                                                                                                           |
+| `tools/fhe-lint.mjs`                                             | 24-rule AST-aware linter, terminal/JSON/markdown output, `--self-test`                                                                                                                                                                           |
 | `tools/fhe-doctor.mjs`                                           | Auto-fix for AP-001/002/004/005/007 (mechanical), report for the rest                                                                                                                                                                            |
 | `tools/fhe-eval.mjs`                                             | Eval runner with `@anthropic-ai/sdk` integration                                                                                                                                                                                                 |
 | `mcp-server/`                                                    | MCP stdio server with 4 tools                                                                                                                                                                                                                    |
@@ -75,7 +75,7 @@ agent tooling for FHEVM is weakest:
 | --------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------- |
 | SKILL.md structure    | Single 14-section file | Multi-file with `references/` (matches Anthropic spec)                                                   |
 | Linter mechanism      | Regex line-scanner     | Hybrid AST-aware (function-scope lookbacks, lookaheads, multi-line context)                              |
-| Anti-pattern coverage | 12–13 rules            | **23 rules with bidirectional fixtures + 23/23 self-test**                                               |
+| Anti-pattern coverage | 12–13 rules            | **24 rules with bidirectional fixtures + 24/24 self-test**                                               |
 | Auto-fix              | None                   | 5 mechanical rewrites (TFHE→FHE, allowThis insert, type narrow, etc.)                                    |
 | MCP integration       | None                   | **4-tool MCP server** (lookup, validate, fix, compile)                                                   |
 | Recipes               | 3 generic templates    | **6 finance-focused recipes**, demo-grade                                                                |
@@ -91,7 +91,7 @@ git clone https://github.com/erenyegit/fhevm-skillpack
 cd fhevm-skillpack
 pnpm install                          # also installs MCP server deps
 pnpm contracts:install                # forge soldeer install
-pnpm lint:fhe packages/foundry/src    # 23-rule linter
+pnpm lint:fhe packages/foundry/src    # 24-rule linter
 pnpm fix:fhe packages/foundry/src     # auto-fix dry run; --write to apply
 pnpm contracts:test                   # forge test -vv (5 tests for demo)
 pnpm mcp                              # start the MCP server (stdio)

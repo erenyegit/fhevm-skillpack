@@ -131,6 +131,19 @@ contract ConfidentialGroupBuyTest is FhevmTest {
         //  storage-slot read of alice's handle. Test #1 confirms alice sees hers.)
     }
 
+    /// Test 6 — pledge() blocked once finalization is scheduled (AP-024).
+    function test_pledgeBlockedAfterSchedule() public {
+        _pledge(alice, ALICE_PK, 400_000);
+        vm.warp(block.timestamp + DEADLINE_OFFSET + 1);
+        buy.scheduleFinalization();
+
+        // Any further pledge after schedule must revert with FinalizationScheduled
+        (externalEuint64 enc, bytes memory proof) = encryptUint64(50_000, bob, address(buy));
+        vm.prank(bob);
+        vm.expectRevert(bytes("FinalizationScheduled"));
+        buy.pledge(enc, proof);
+    }
+
     /// Test 5 — finalisation pulls a finality-delay path correctly.
     /// (Demo contract uses delete-before-effects via `finalized=true`. We assert
     ///  no double-finalisation and goalMet is correctly false when under-funded.)
