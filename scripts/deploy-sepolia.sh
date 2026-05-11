@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # DEPRECATED — the bounty-track demo is deployed with `forge create` directly
-# (see submission/community-post.md for the live verified addresses, and
-# demo/setup-checklist.md for the deployment recipe).
+# (see submission/community-post.md for the live verified addresses and the
+# inline deployment recipe).
 echo "scripts/deploy-sepolia.sh is deprecated."
 echo ""
 echo "Live deploys:"

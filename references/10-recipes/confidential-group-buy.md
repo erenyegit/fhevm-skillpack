@@ -5,12 +5,15 @@ a public goal. Individual pledges remain private forever; only the total
 is revealed (and only when the goal is reached). On success, funds are
 released to the creator.
 
-This is the **demo contract** for fhevm-skillpack. See
-`/demo/ConfidentialGroupBuy.sol` for the complete implementation with
-async-decryption replay defense, and `/demo/frontend-page.tsx` for the
-React UI integrating with `@zama-fhe/react-sdk`.
+This is the **demo contract** for fhevm-skillpack. The complete
+implementation with async-decryption replay defense, AP-023
+seed-in-constructor fix, and AP-024 post-schedule mutation guard lives at
+`packages/foundry/src/ConfidentialGroupBuy.sol`. The React UI that drives
+it via `@zama-fhe/react-sdk` lives at
+`packages/nextjs/app/group-buy/page.tsx`.
 
 ## Key FHE primitives
+
 - `euint64` per-backer pledge + running encrypted total
 - `FHE.add` accumulator
 - Public `goalAmount` (plaintext) — comparison happens on cleartext after
@@ -123,7 +126,9 @@ contract ConfidentialGroupBuy is ZamaEthereumConfig {
 
 ## Test highlights
 
-See `/demo/ConfidentialGroupBuy.t.sol` for the full 5-test suite covering:
+See `packages/foundry/test/ConfidentialGroupBuy.t.sol` for the full
+6-test suite covering:
+
 1. Three backers pledge, encrypted total accumulates correctly.
 2. Goal-met triggers `goalMet = true` after async callback.
 3. Replay attack on `finalizeCallback` rejected (`finalized = true` blocks reuse).
@@ -132,6 +137,7 @@ See `/demo/ConfidentialGroupBuy.t.sol` for the full 5-test suite covering:
    transferred amount counted.
 
 ## Common pitfalls
+
 - **AP-018 silent transfer failure ignored.** This contract uses
   `transferred` (effective) and not `encAmount` (requested). Critical.
 - **AP-010 callback replay.** `finalized = true` must be set before any

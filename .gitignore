@@ -20,3 +20,4 @@ packages/nextjs/contracts/*.local.ts
 
 CLAUDE.md
 .claude
+.demo-private/

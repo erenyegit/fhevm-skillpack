@@ -63,8 +63,8 @@ agent tooling for FHEVM is weakest:
 | `mcp-server/`                                                    | MCP stdio server with 4 tools                                                                                                                                                                                                                    |
 | `eval-suite/`                                                    | 14 prompts + expected-properties JSON + 5 agent runners + REPORT.md                                                                                                                                                                              |
 | `packages/foundry/src/ConfidentialGroupBuy.sol` + tests + script | Demo contract on top of the template                                                                                                                                                                                                             |
-| `demo/frontend-page.tsx`                                         | Drop-in `/group-buy` route for the Next.js app                                                                                                                                                                                                   |
-| `demo/VIDEO-SCRIPT.md`                                           | 3-minute shooting script (cue cards + voice-over)                                                                                                                                                                                                |
+| `packages/foundry/src/MockCToken.sol`                            | Confidential ERC-7984-style test token used by the demo                                                                                                                                                                                          |
+| `packages/nextjs/app/group-buy/page.tsx`                         | `/group-buy` Next.js route — the live demo UI                                                                                                                                                                                                    |
 
 ## Battle-Tested During Build
 
@@ -127,7 +127,32 @@ pnpm eval                             # writes eval-suite/results/REPORT.md
 ```
 
 For Cursor/Claude-Code MCP install instructions see `mcp-server/README.md`.
-For the demo contract walkthrough see `demo/VIDEO-SCRIPT.md`.
+
+### Demo flow (inline)
+
+The demo lives at `packages/nextjs/app/group-buy/page.tsx` against the
+verified Sepolia contracts listed above. End-to-end script:
+
+1. Connect MetaMask on Sepolia. Click **Mint 500k test cUSD** — gets the
+   wallet enough confidential token to pledge.
+2. Click **Pledge** with an amount in base units (1 cUSD = 1 000 000).
+   The frontend encrypts via `useEncrypt` bound to the
+   `ConfidentialGroupBuy` address; the contract calls `FHE.fromExternal`,
+   then hands the validated handle to the token via `FHE.allowTransient`
+   - `transferFromValidated`. Each backer's pledge is decryptable only by
+     that backer via `useUserDecrypt`.
+3. After the deadline passes, click **Schedule reveal** → wait 12 Sepolia
+   blocks (~2.5 min, defeats reorg-disclosure per AP-019) → click
+   **Request finalisation**. The Decryption Oracle picks up the
+   `makePubliclyDecryptable` request and calls `finalizeCallback` with
+   the cleartext total + KMS-signed proof.
+4. `revealedTotal` and `goalMet` flip on-chain; the UI polls and updates.
+5. If goal met, creator withdraws via the seeded plaintext value.
+
+The video shoot uses Cursor in a fresh session with the skillpack loaded.
+A single-shot natural-language prompt produces the full
+ConfidentialGroupBuy contract + 5-test Foundry suite + frontend page,
+all clean against `pnpm lint:fhe` on the first try.
 
 ## Built and tested on
 
