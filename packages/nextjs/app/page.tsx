@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAccount } from "wagmi";
 import { RainbowKitCustomConnectButton } from "~~/components/helper/RainbowKitCustomConnectButton";
 import { useFHECounterWagmi } from "~~/hooks/fhecounter-example/useFHECounterWagmi";
@@ -47,6 +48,13 @@ export default function Home() {
         <div className="text-center mb-8 text-black">
           <h1 className="text-3xl font-bold mb-2">FHE Counter Demo</h1>
           <p className="text-gray-600">Interact with the Fully Homomorphic Encryption Counter contract</p>
+          <p className="mt-3 text-sm">
+            🎯 Featured demo:{" "}
+            <Link href="/group-buy" className="font-semibold underline text-[#A38025] hover:text-[#8F6E1E]">
+              Confidential Group Buy
+            </Link>{" "}
+            — Kickstarter-style crowdfunding with encrypted pledges (Bounty Track demo).
+          </p>
         </div>
 
         <div className={sectionClass}>
