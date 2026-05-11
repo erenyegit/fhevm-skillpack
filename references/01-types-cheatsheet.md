@@ -1,6 +1,7 @@
 # 01 — Encrypted types cheatsheet
 
 ## Contents
+
 - Type table with selection rules
 - HCU cost intuition by width
 - `externalEuintXX` lifecycle
@@ -8,16 +9,16 @@
 
 ## Type table
 
-| Type | Bit-width | Primary use | Avoid for |
-|---|---|---|---|
-| `ebool` | 1 | Comparison results, branching gates fed to `FHE.select` | Storing bit flags in tight bitmaps — use `euint8` |
-| `euint8` | 8 | Small enums, percentages 0–100, single-byte flags | Token balances (will overflow) |
-| `euint16` | 16 | Counters, vote tallies (<65k voters), small ID spaces | Money amounts |
-| `euint32` | 32 | Sub-billion counters, the stock `FHECounter.sol` example, simple voting | Token amounts unless 32-bit truncation is acceptable |
-| `euint64` | 64 | **Default for token balances, money amounts** (matches ERC-7984 spec) | Bitmap fields |
-| `euint128` | 128 | BPS math intermediates (`amount × 10_000`), large monetary aggregates | Anywhere `euint64` fits — 2× HCU |
-| `euint256` | 256 | Cryptographic-grade values only (e.g., commitments) | **Anything else — 4–6× HCU cost vs euint64** |
-| `eaddress` (alias of `euint160`) | 160 | Encrypted addresses (sealed-bid winner, blind beneficiary) | When the address is public anyway |
+| Type                             | Bit-width | Primary use                                                           | Avoid for                                            |
+| -------------------------------- | --------- | --------------------------------------------------------------------- | ---------------------------------------------------- |
+| `ebool`                          | 1         | Comparison results, branching gates fed to `FHE.select`               | Storing bit flags in tight bitmaps — use `euint8`    |
+| `euint8`                         | 8         | Small enums, percentages 0–100, single-byte flags                     | Token balances (will overflow)                       |
+| `euint16`                        | 16        | Counters, vote tallies (<65k voters), small ID spaces                 | Money amounts                                        |
+| `euint32`                        | 32        | Sub-billion counters, simple voting tallies                           | Token amounts unless 32-bit truncation is acceptable |
+| `euint64`                        | 64        | **Default for token balances, money amounts** (matches ERC-7984 spec) | Bitmap fields                                        |
+| `euint128`                       | 128       | BPS math intermediates (`amount × 10_000`), large monetary aggregates | Anywhere `euint64` fits — 2× HCU                     |
+| `euint256`                       | 256       | Cryptographic-grade values only (e.g., commitments)                   | **Anything else — 4–6× HCU cost vs euint64**         |
+| `eaddress` (alias of `euint160`) | 160       | Encrypted addresses (sealed-bid winner, blind beneficiary)            | When the address is public anyway                    |
 
 `externalEuintXX` (e.g., `externalEuint64`) is the **wire-format** type for
 inputs flowing from frontend to contract. It is NOT operable — convert
@@ -41,6 +42,7 @@ For a token with 6 decimals and a 100M total supply: `100_000_000 × 10^6 =
 10^14`, well under `2^64 ≈ 1.8×10^19`. `euint64` is correct.
 
 For BPS-multiplied math (`amount × 10_000 / 10_000`):
+
 - Use `euint128` for the intermediate after multiplication, then narrow back
   to `euint64` after the division (cast via `FHE.asEuint64`).
 
@@ -48,6 +50,7 @@ For BPS-multiplied math (`amount × 10_000 / 10_000`):
 
 `eaddress` is `euint160` under the hood. Comparison cost is between `euint128`
 and `euint256`. Use for:
+
 - Sealed-bid auction winners (revealed only at the end via `makePubliclyDecryptable`)
 - Confidential withdrawal beneficiary
 - Blind voting delegate

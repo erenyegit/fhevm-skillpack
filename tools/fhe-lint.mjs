@@ -41,10 +41,14 @@ const RULES = [
     message:
       "Solidity branching (if/require/ternary/&&/||) on encrypted value — use FHE.select",
     detect: (line, ctx) => {
-      // if (FHE.gt|lt|le|ge|eq|ne(...)) | require(FHE.eq(...)) | ternary on FHE.* result
-      if (/\b(if|require|revert)\s*\(\s*FHE\.(gt|lt|le|ge|eq|ne|and|or|not|isAllowed|isSenderAllowed)\b/.test(line)) return true;
-      // ternary: ... = FHE.gt(a,b) ? a : b ;  OR  ... = FHE.eq(...) ? ...
-      if (/=\s*FHE\.(gt|lt|le|ge|eq|ne)\([^;]*\)\s*\?\s*[^:]+:\s*[^;]+;/.test(line)) return true;
+      // Branch on encrypted-returning ops only. FHE.isSenderAllowed / isAllowed /
+      // isPubliclyDecryptable / isInitialized return PLAINTEXT bool — they are
+      // SAFE in if/require/&&/||. Comparison ops (gt/lt/le/ge/eq/ne) return ebool;
+      // boolean ops on ebool (and/or/xor/not) also return ebool — both unsafe in
+      // Solidity branches.
+      if (/\b(if|require|revert)\s*\(\s*FHE\.(gt|lt|le|ge|eq|ne|and|or|xor|not)\s*\(/.test(line)) return true;
+      // ternary: ... = FHE.gt(a,b) ? a : b ;
+      if (/=\s*FHE\.(gt|lt|le|ge|eq|ne|and|or|xor|not)\s*\([^;]*\)\s*\?\s*[^:]+:\s*[^;]+;/.test(line)) return true;
       return false;
     },
     fix: "FHE.select(condition, ifTrue, ifFalse)",
@@ -80,9 +84,27 @@ const RULES = [
       );
       if (!m) return false;
       const lhs = m[1].split(/[\.\[]/)[0]; // base ident
-      // local variable (declared with type on same line) is exempt unless it later writes to storage
+      // Local: declared with type on same line (e.g. `euint64 amount = FHE.fromExternal(...)`).
       if (/^[\s\t]*(euint8|euint16|euint32|euint64|euint128|euint256|ebool|eaddress)\s+/.test(line)) return false;
-      // look ahead 6 lines for allowThis(lhs); strip comments so commented mentions don't pass
+      // Local: declared as a named return parameter (or input param) of the enclosing function.
+      // Walk back from current line to the most recent `function ... {` declaration (may be
+      // multi-line). If the LHS identifier appears anywhere in that signature, treat as local.
+      let sigStart = -1;
+      for (let i = ctx.lineNo - 2; i >= Math.max(0, ctx.lineNo - 30); i--) {
+        const ln = ctx.allLines[i];
+        if (/^\s*function\s+\w+/.test(ln)) { sigStart = i; break; }
+        // exited function scope (closing brace at column 0) before finding a `function` line
+        if (/^}/.test(ln)) break;
+      }
+      if (sigStart >= 0) {
+        let sig = "";
+        for (let j = sigStart; j < ctx.lineNo - 1 && j < sigStart + 20; j++) {
+          sig += ctx.allLines[j] + " ";
+          if (sig.includes("{")) break;
+        }
+        if (new RegExp(`\\b${escapeRe(lhs)}\\b`).test(sig)) return false;
+      }
+      // Storage write — look ahead 6 lines for allowThis(lhs).
       const windowStripped = ctx.allLines
         .slice(ctx.lineNo, ctx.lineNo + 6)
         .map((l) => l.replace(/\/\/.*$/, "").replace(/\/\*.*?\*\//g, ""))
