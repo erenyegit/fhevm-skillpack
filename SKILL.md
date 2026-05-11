@@ -12,7 +12,7 @@ description: |
   using ZK instead of FHE, branching with if/else on encrypted values, calling
   deprecated TFHE.decrypt(), forgetting FHE.allowThis after assignment, treating
   encrypted overflow like Solidity 0.8+ checked arithmetic. Ships an AST-aware
-  linter, auto-fix tool, MCP server, and 22 anti-pattern catalog.
+  linter, auto-fix tool, MCP server, and 23 anti-pattern catalog.
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 keywords: fhevm, zama, fhe, confidential, encrypted, euint, ebool, ciphertext, acl, sepolia, foundry, hardhat, forge-fhevm
 ---
@@ -97,7 +97,7 @@ User says... → Read this reference file:
 
 Always run `pnpm lint:fhe` (this skill's bundled AST linter) on any
 modified `.sol` file before declaring work complete. If issues surface, run
-`pnpm fix:fhe` for auto-fix where possible (8 of 22 rules).
+`pnpm fix:fhe` for auto-fix where possible (8 of 23 rules).
 
 </decision_tree>
 
@@ -358,7 +358,7 @@ Anti-patterns (full list in `references/08-relayer-sdk-frontend.md`):
 
 <top_anti_patterns>
 
-The 10 most common AI failure modes (full 22-rule catalog in
+The 10 most common AI failure modes (full 23-rule catalog in
 `references/04-anti-patterns-catalog.md` — bundled linter rule IDs in brackets):
 
 1. **[AP-001]** `if (FHE.gt(a, b)) { x = a; } else { x = b; }` → use
@@ -408,7 +408,7 @@ allowing ACL grant via untrusted target.
   - `confidential-dca-engine.md`
   - `confidential-group-buy.md` ← used in the demo
 
-Bundled tools: `tools/fhe-lint.mjs` (AST linter, 22 rules), `tools/fhe-doctor.mjs`
+Bundled tools: `tools/fhe-lint.mjs` (AST linter, 23 rules), `tools/fhe-doctor.mjs`
 (auto-fix, 8 rules), `tools/fhe-eval.mjs` (14-prompt eval suite),
 `mcp-server/` (MCP tools: `lookup_fhe_op`, `validate_snippet`, `suggest_fix`,
 `compile_test`).

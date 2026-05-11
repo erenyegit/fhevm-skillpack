@@ -1,4 +1,4 @@
-# 04 — Anti-patterns catalog (22 rules)
+# 04 — Anti-patterns catalog (23 rules)
 
 Every rule has a stable ID (`AP-XXX`) used by the bundled linter. Rules are
 grouped by category. Severity legend: 🔴 error · 🟡 warning · 🔵 info.
@@ -9,7 +9,7 @@ grouped by category. Severity legend: 🔴 error · 🟡 warning · 🔵 info.
 - AP-006 to AP-010: Inputs, types, division, overflow, callback replay
 - AP-011 to AP-015: Views, persistent allow, hashing, frontend instance, signature storage
 - AP-016 to AP-020: URL leak, request IDs, silent transfers, reorg, AA transient
-- AP-021 to AP-022: 3rd-party encryption replay, arbitrary execute
+- AP-021 to AP-023: 3rd-party encryption replay, arbitrary execute, zero-handle silent lock
 
 ---
 
