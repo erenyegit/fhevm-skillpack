@@ -129,9 +129,11 @@ For the demo contract walkthrough see `demo/VIDEO-SCRIPT.md`.
 - **GitHub:** https://github.com/erenyegit/fhevm-skillpack
 - **Demo video:** https://youtu.be/<TBD — paste link after upload>
 - **Sepolia deployments:**
-  - `ConfidentialGroupBuy` (demo, 10-min deadline — used in the video) → [`0xcb6891DfaEcc2F5C54d10668fbf38011Fc4ffC9F`](https://sepolia.etherscan.io/address/0xcb6891DfaEcc2F5C54d10668fbf38011Fc4ffC9F) (verified)
-  - `ConfidentialGroupBuy` (long-deadline reference, finalises after 2026-05-25) → [`0x4441CC7bF0bf4b7728e43Fee020D3128D67878a9`](https://sepolia.etherscan.io/address/0x4441CC7bF0bf4b7728e43Fee020D3128D67878a9) (verified)
+  - `ConfidentialGroupBuy` (live demo, 20-min deadline, with AP-023 seed-in-constructor fix) → [`0xCB4e3F1Dea12F2e4b380188F429Cccf2e8938423`](https://sepolia.etherscan.io/address/0xCB4e3F1Dea12F2e4b380188F429Cccf2e8938423) (verified)
   - `MockCToken` (cUSD) → [`0x9Ab7912a600049De984E4C79AfC90E34eE17c08f`](https://sepolia.etherscan.io/address/0x9Ab7912a600049De984E4C79AfC90E34eE17c08f) (verified)
+  - Historical deploys (kept for trace):
+    - `ConfidentialGroupBuy v1` (14-day deadline) → [`0x4441CC7bF0bf4b7728e43Fee020D3128D67878a9`](https://sepolia.etherscan.io/address/0x4441CC7bF0bf4b7728e43Fee020D3128D67878a9)
+    - `ConfidentialGroupBuy v2` (10-min deadline, locked by AP-023 — see anti-pattern catalog) → [`0xcb6891DfaEcc2F5C54d10668fbf38011Fc4ffC9F`](https://sepolia.etherscan.io/address/0xcb6891DfaEcc2F5C54d10668fbf38011Fc4ffC9F)
   - Goal: 1,000,000 base units (= 1.0 cUSD with 6 decimals)
 
 ## License

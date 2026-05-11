@@ -336,6 +336,32 @@ const RULES = [
     fix: "See references/06-input-proofs.md — bind via encrypted-sender check, EOA signature, or single-shot proof.",
   },
   {
+    id: "AP-023",
+    severity: "error",
+    message:
+      "makePubliclyDecryptable called on a handle that may be the zero sentinel — KMS silently ignores it, callback never fires, contract locks",
+    detect: (line, ctx) => {
+      const m = line.match(/FHE\.makePubliclyDecryptable\s*\(\s*([_A-Za-z][\w.\[\]]*)\s*\)/);
+      if (!m) return false;
+      const v = m[1];
+      // Allow if guarded by FHE.isInitialized(v) within the surrounding lines (lookback 10)
+      const back = ctx.allLines.slice(Math.max(0, ctx.lineNo - 11), ctx.lineNo - 1).join("\n");
+      if (new RegExp(`FHE\\.isInitialized\\s*\\(\\s*${escapeRe(v)}\\s*\\)`).test(back)) return false;
+      // Or if file seeds the slot somewhere (e.g. constructor: v = FHE.asEuintXX(0); FHE.allowThis(v);)
+      const seeded = new RegExp(
+        `${escapeRe(v)}\\s*=\\s*FHE\\.asEuint\\d+\\s*\\(\\s*0\\s*\\)[\\s\\S]{0,80}FHE\\.allowThis\\s*\\(\\s*${escapeRe(v)}`,
+      );
+      if (seeded.test(ctx.fileText)) return false;
+      // Otherwise, demand at least one prior write of the form `v = FHE.<op>(...)` somewhere in the file
+      const written = new RegExp(`${escapeRe(v)}\\s*=\\s*FHE\\.(add|sub|mul|div|rem|min|max|and|or|xor|not|shl|shr|select|fromExternal|asEuint8|asEuint16|asEuint32|asEuint64|asEuint128|asEuint256|asEaddress|asEbool|randEuint8|randEuint16|randEuint32|randEuint64|randEuint128|randEuint256|randEbool)\\b`);
+      if (!written.test(ctx.fileText)) return true;
+      // The handle is written somewhere, but the call here may still race a zero-handle path
+      // if it's reachable before any write. Conservative: require a guard for `getFoo()`-style flows.
+      return false;
+    },
+    fix: "Guard with `require(FHE.isInitialized(handle), \"no ciphertext yet\");` OR seed the slot in the constructor: `handle = FHE.asEuint64(0); FHE.allowThis(handle);` (gives a real handle even for value 0).",
+  },
+  {
     id: "AP-022",
     severity: "error",
     message: "Arbitrary execute(target, data) external call — attacker can grant ACL via untrusted target",

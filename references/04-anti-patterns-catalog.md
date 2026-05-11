@@ -4,6 +4,7 @@ Every rule has a stable ID (`AP-XXX`) used by the bundled linter. Rules are
 grouped by category. Severity legend: 🔴 error · 🟡 warning · 🔵 info.
 
 ## Contents
+
 - AP-001 to AP-005: Branching, imports, decryption, ACL, casts
 - AP-006 to AP-010: Inputs, types, division, overflow, callback replay
 - AP-011 to AP-015: Views, persistent allow, hashing, frontend instance, signature storage
@@ -13,18 +14,22 @@ grouped by category. Severity legend: 🔴 error · 🟡 warning · 🔵 info.
 ---
 
 ## AP-001 🔴 Solidity branching on encrypted value
+
 **Category:** Control flow
 
 ❌ Bad
+
 ```solidity
 if (FHE.gt(a, b)) { _max = a; } else { _max = b; }
 require(FHE.eq(role, FHE.asEuint8(ADMIN)), "denied");
 _winner = FHE.gt(a, b) ? a : b;   // ternary still illegal
 ```
+
 ⚠️ Why: encrypted booleans cannot be evaluated by the EVM. The compiler
 either rejects or — worse — silently truncates the encrypted bool to zero.
 
 ✅ Good
+
 ```solidity
 _max = FHE.select(FHE.gt(a, b), a, b);
 // For "guards" — let the wrong path produce a no-op:
@@ -35,12 +40,14 @@ _balance = FHE.select(isAdmin, _balance, FHE.add(_balance, penalty));
 ---
 
 ## AP-002 🔴 Legacy TFHE import
+
 **Category:** Import / API version
 
 ❌ Bad: `import "fhevm/lib/TFHE.sol";` · `TFHE.add(...)`
 ⚠️ Why: TFHE namespace was removed in v0.7→v0.11 migration.
 
 ✅ Good
+
 ```solidity
 import {FHE, euint64, externalEuint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
@@ -49,6 +56,7 @@ import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 ---
 
 ## AP-003 🔴 Synchronous decryption
+
 **Category:** Decryption flow
 
 ❌ Bad: `uint64 v = handle.decrypt();` · `TFHE.decrypt(h);` · `handle.reveal();`
@@ -61,14 +69,18 @@ available in the same tx.
 ---
 
 ## AP-004 🔴 Storage write without `allowThis`
+
 **Category:** ACL
 
 ❌ Bad
+
 ```solidity
 _balance = FHE.add(_balance, amount);
 // next tx: read returns zero handle, ACL silently denied
 ```
+
 ✅ Good
+
 ```solidity
 _balance = FHE.add(_balance, amount);
 FHE.allowThis(_balance);
@@ -78,6 +90,7 @@ FHE.allow(_balance, msg.sender);
 ---
 
 ## AP-005 🟡 Direct cast from encrypted handle
+
 **Category:** Type system
 
 ❌ Bad: `uint64 plain = uint64(euint64.unwrap(handle));`
@@ -90,16 +103,20 @@ Casting it to `uint64` yields garbage but compiles.
 ---
 
 ## AP-006 🔴 Skipping `FHE.fromExternal`
+
 **Category:** Input handling
 
 ❌ Bad
+
 ```solidity
 function deposit(externalEuint64 enc, bytes calldata proof) external {
     _balance = FHE.add(_balance, /* enc directly */ enc);  // doesn't compile, but
                                                             // even via raw bytes32 reuse, would skip proof
 }
 ```
+
 ✅ Good
+
 ```solidity
 function deposit(externalEuint64 enc, bytes calldata proof) external {
     euint64 amount = FHE.fromExternal(enc, proof);
@@ -111,6 +128,7 @@ function deposit(externalEuint64 enc, bytes calldata proof) external {
 ---
 
 ## AP-007 🟡 `euint256` for token balances
+
 **Category:** Type sizing
 
 ❌ Bad: `mapping(address => euint256) _balances;`
@@ -124,6 +142,7 @@ Linter flags `euint256` when the storage variable name matches `balance`,
 ---
 
 ## AP-008 🔴 Encrypted divisor in `FHE.div` / `FHE.rem`
+
 **Category:** Op constraints
 
 ❌ Bad: `FHE.div(amount, _bpsHandle);`
@@ -136,15 +155,19 @@ a decryption callback.
 ---
 
 ## AP-009 🔴 `mul`/`sub` without overflow guard
+
 **Category:** Arithmetic safety (OZ Fabry vulnerability #1)
 
 ❌ Bad
+
 ```solidity
 // Fee math — overflow on mul wraps the numerator to a tiny value
 euint64 feeNumerator = FHE.mul(amount, FHE.asEuint64(FEE_BPS));
 euint64 fee = FHE.div(feeNumerator, FEE_DENOM);
 ```
+
 ✅ Good
+
 ```solidity
 uint64 constant MAX_SAFE = type(uint64).max / FEE_BPS;
 ebool tooBig = FHE.gt(amount, FHE.asEuint64(MAX_SAFE));
@@ -155,9 +178,11 @@ euint64 feeNumerator = FHE.mul(capped, FHE.asEuint64(FEE_BPS));
 ---
 
 ## AP-010 🔴 Async callback without `delete` before effects
+
 **Category:** Replay defense (OZ Fabry vulnerability #4)
 
 ❌ Bad
+
 ```solidity
 function fulfillWithdraw(uint256 id, uint64 amount, bytes[] calldata sigs) external {
     FHE.checkSignatures(amount, sigs);
@@ -166,7 +191,9 @@ function fulfillWithdraw(uint256 id, uint64 amount, bytes[] calldata sigs) exter
     // _pending[id] not deleted — relayer can replay
 }
 ```
+
 ✅ Good
+
 ```solidity
 function fulfillWithdraw(uint256 id, uint64 amount, bytes[] calldata sigs) external {
     Request memory r = _pending[id];
@@ -180,6 +207,7 @@ function fulfillWithdraw(uint256 id, uint64 amount, bytes[] calldata sigs) exter
 ---
 
 ## AP-011 🟡 Returning encrypted handle from `view`
+
 **Category:** ACL
 
 ❌ Bad: `function balanceOf(address a) external view returns (euint64) { return _b[a]; }`
@@ -188,6 +216,7 @@ to the caller. Either declare non-view and grant, or use a separate
 authorisation function.
 
 ✅ Good
+
 ```solidity
 function balanceOf(address a) external view returns (euint64) {
     return _b[a];  // OK only if persistent allow was already granted on write
@@ -200,6 +229,7 @@ function grantBalanceAccess() external {
 ---
 
 ## AP-012 🔴 Persistent `allow` to helper contracts (lateral leak)
+
 **Category:** ACL (OZ Fabry vulnerability #3)
 
 ❌ Bad: `FHE.allow(amount, address(feeHandler));`
@@ -210,6 +240,7 @@ See lateral-leak scenario in `references/03-acl-decision-tree.md`.
 ---
 
 ## AP-013 🟡 Hashing `(value, proof)` for replay defense
+
 **Category:** Replay defense
 
 ❌ Bad: using `keccak256(abi.encode(externalEuint, inputProof))` as a uniqueness
@@ -221,21 +252,25 @@ or use a per-user nonce.
 ---
 
 ## AP-014 🟡 `createInstance` per render (frontend)
+
 **Category:** Frontend perf
 
 ❌ Bad
+
 ```ts
 function Component() {
-    const instance = await createInstance(SepoliaConfig);  // every render
-    // ...
+  const instance = await createInstance(SepoliaConfig); // every render
+  // ...
 }
 ```
+
 ✅ Good: create once at the provider level (`@zama-fhe/react-sdk`'s
 `ZamaProvider` does this). Hooks consume the shared instance.
 
 ---
 
 ## AP-015 🟡 EIP-712 signature in `localStorage` (frontend)
+
 **Category:** Frontend security
 
 ❌ Bad: `localStorage.setItem("fhe-sig", sig);`
@@ -246,6 +281,7 @@ on hard refresh.
 ---
 
 ## AP-016 🟡 Decrypted plaintext in URL or query param
+
 **Category:** Frontend security
 
 ❌ Bad: `router.push(\`/result?value=\${decryptedBalance}\`);`
@@ -255,12 +291,15 @@ on hard refresh.
 ---
 
 ## AP-017 🔴 Ciphertext handle as decryption request ID
+
 **Category:** Async flow
 
 ❌ Bad
+
 ```solidity
 _pending[euint64.unwrap(handle)] = msg.sender;
 ```
+
 ⚠️ Why: handle bytes are not guaranteed unique across re-encryptions; ACL
 rotation can produce handle collisions.
 ✅ Good: use a monotonically increasing counter `uint256 nextId++`.
@@ -268,9 +307,11 @@ rotation can produce handle collisions.
 ---
 
 ## AP-018 🔴 Silent transfer failure ignored in auction
+
 **Category:** Logic flaw (OZ Fabry vulnerability #5)
 
 ❌ Bad
+
 ```solidity
 function bid(externalEuint64 amount, bytes calldata proof) external {
     euint64 a = FHE.fromExternal(amount, proof);
@@ -280,7 +321,9 @@ function bid(externalEuint64 amount, bytes calldata proof) external {
     _highestBidder = FHE.select(isHigher, FHE.asEaddress(msg.sender), _highestBidder);
 }
 ```
-✅ Good — base state changes on the *effective* transferred amount:
+
+✅ Good — base state changes on the _effective_ transferred amount:
+
 ```solidity
 euint64 effective = cWETH.confidentialTransferFrom(msg.sender, address(this), a);
 ebool actuallyTransferred = FHE.gt(effective, FHE.asEuint64(0));
@@ -293,9 +336,11 @@ _highestBidder  = FHE.select(isBest, FHE.asEaddress(msg.sender), _highestBidder)
 ---
 
 ## AP-019 🔴 Disclosing winner without finality delay
+
 **Category:** Reorg attack (OZ Fabry vulnerability #6)
 
 ❌ Bad
+
 ```solidity
 function reveal() external {
     require(block.timestamp > END);
@@ -303,10 +348,12 @@ function reveal() external {
     FHE.makePubliclyDecryptable(_highestBidder);
 }
 ```
+
 ⚠️ Why: a reorg after losers decrypt can flip the winner; losers retain
 plaintext anyway, breaking confidentiality of the underlying asset.
 
 ✅ Good — two-step with finality delay:
+
 ```solidity
 function scheduleReveal() external {
     require(block.timestamp > END);
@@ -324,6 +371,7 @@ function reveal() external {
 ---
 
 ## AP-020 🟡 AA transient-storage leak between user ops
+
 **Category:** Account abstraction (OZ Fabry vulnerability #7)
 
 ❌ Bad: AA bundler packs multiple user ops into one tx; `FHE.allowTransient`
@@ -334,6 +382,7 @@ grants from user op #1 are still readable in user op #2.
 ---
 
 ## AP-021 🔴 3rd-party-caller external-encryption replay
+
 **Category:** Input handling (OZ Fabry vulnerability #8)
 
 ❌ Bad: a relayer submits Alice's encrypted tuple `(externalEuint64, proof)`
@@ -348,14 +397,67 @@ captured in the proof.
 
 ---
 
+## AP-023 🔴 Zero-handle sent to decryption oracle
+
+**Category:** Async decryption
+
+❌ Bad
+
+```solidity
+contract GroupBuy {
+    euint64 private _total;   // never assigned → handle is bytes32(0)
+
+    function reveal() external {
+        FHE.makePubliclyDecryptable(_total);  // KMS sees zero handle and ignores
+        // callback never fires → contract permanently stuck
+    }
+}
+```
+
+⚠️ Why: `euint64(0)` (Solidity default) is the **zero handle** `bytes32(0)`,
+a sentinel meaning "no ciphertext exists." The FHEVM gateway emits a
+decryption request and the KMS quorum politely ignores it because there's
+no plaintext to sign. The contract's pending request never gets a callback,
+`finalized` stays false forever, and any `require(finalizationRequestId == 0)`
+guard now permanently blocks retries.
+
+This is a **silent lock**: no revert, no callback, no recovery path unless
+the contract has an admin reset. We caught this live on Sepolia during the
+fhevm-skillpack demo run on a contract that called `makePubliclyDecryptable`
+before any pledges happened — the contract is now permanently stuck.
+
+✅ Good — option 1: guard the request
+
+```solidity
+function reveal() external {
+    require(FHE.isInitialized(_total), "no ciphertext yet");
+    FHE.makePubliclyDecryptable(_total);
+}
+```
+
+✅ Good — option 2: seed the slot with a real (still-zero) ciphertext
+
+```solidity
+constructor() {
+    _total = FHE.asEuint64(0);     // assigns a real handle, not the sentinel
+    FHE.allowThis(_total);
+}
+```
+
+Either is fine. Seeding in the constructor is more robust if callers may
+trigger a reveal before the first write (e.g. an empty auction or vote).
+
 ## AP-022 🔴 Arbitrary `execute(target, data)` allowing ACL grant
+
 **Category:** Privilege escalation (OZ Fabry vulnerability #9)
 
 ❌ Bad
+
 ```solidity
 function execute(address target, bytes calldata data) external onlyOwner {
     (bool ok,) = target.call(data);  // attacker-controlled target can call ACL
 }
 ```
+
 ✅ Good: forbid arbitrary external calls in confidential contracts. If
 necessary, whitelist targets and validate calldata selectors.

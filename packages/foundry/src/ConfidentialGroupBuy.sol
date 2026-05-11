@@ -54,6 +54,11 @@ contract ConfidentialGroupBuy is ZamaEthereumConfig {
         creator = msg.sender;
         goalAmount = _goal;
         deadline = _deadline;
+        // AP-023 defense: seed _totalRaised with a real ciphertext handle so
+        // requestFinalization never sends the zero-handle sentinel to the KMS
+        // (which would silently ignore it and lock the contract forever).
+        _totalRaised = FHE.asEuint64(0);
+        FHE.allowThis(_totalRaised);
     }
 
     /// @notice Pledge an encrypted amount towards the goal.

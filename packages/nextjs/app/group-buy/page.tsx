@@ -15,7 +15,7 @@ import { deploymentFor } from "~~/utils/contract";
 const TOKEN_ADDRESS = (process.env.NEXT_PUBLIC_CUSD_ADDRESS ??
   "0x9Ab7912a600049De984E4C79AfC90E34eE17c08f") as `0x${string}`;
 const GROUPBUY_ADDRESS = (process.env.NEXT_PUBLIC_GROUPBUY_ADDRESS ??
-  "0xcb6891DfaEcc2F5C54d10668fbf38011Fc4ffC9F") as `0x${string}`;
+  "0xCB4e3F1Dea12F2e4b380188F429Cccf2e8938423") as `0x${string}`;
 
 const buttonBase =
   "inline-flex items-center justify-center px-6 py-3 font-semibold shadow-lg transition-all duration-200 hover:scale-105 " +

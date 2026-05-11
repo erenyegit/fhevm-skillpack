@@ -374,6 +374,10 @@ The 10 most common AI failure modes (full 22-rule catalog in
 8. **[AP-008]** `FHE.div(a, b)` where `b` is encrypted — only plaintext divisors.
 9. **[AP-009]** `FHE.mul(amount, basisPoints)` with no overflow guard.
 10. **[AP-010]** Async callback that doesn't `delete _pending[id]` before effects.
+11. **[AP-023]** `FHE.makePubliclyDecryptable(handle)` where `handle` was never
+    assigned — the zero handle `bytes32(0)` is a sentinel; KMS ignores it,
+    callback never fires, contract locks. Guard with `FHE.isInitialized` or
+    seed the slot in the constructor.
 
 The remaining 12 cover: returning encrypted from `view` fns, persistent allow
 to helpers, hashing `(value, proof)` for replay defense, `createInstance`

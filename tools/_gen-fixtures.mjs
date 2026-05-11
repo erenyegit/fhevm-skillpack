@@ -332,6 +332,27 @@ export function Show(decryptedAmount: bigint) {
     }`),
   },
 
+  "AP-023": {
+    bad: wrap(`    euint64 private _total;
+    function reveal() external {
+        FHE.makePubliclyDecryptable(_total);
+    }`),
+    good: wrap(`    euint64 private _total;
+    constructor() {
+        _total = FHE.asEuint64(0);
+        FHE.allowThis(_total);
+    }
+    function add(externalEuint64 enc, bytes calldata proof) external {
+        euint64 amt = FHE.fromExternal(enc, proof);
+        _total = FHE.add(_total, amt);
+        FHE.allowThis(_total);
+    }
+    function reveal() external {
+        require(FHE.isInitialized(_total), "no ct");
+        FHE.makePubliclyDecryptable(_total);
+    }`),
+  },
+
   "AP-022": {
     bad: wrap(`    function execute(address target, bytes calldata data) external {
         (bool ok,) = target.call(data);
