@@ -36,7 +36,7 @@ agent tooling for FHEVM is weakest:
 1. **Multi-file progressive disclosure** matching the Anthropic Skills
    spec (single-file SKILL.md is a 2024 anti-pattern).
 2. **AST-aware linter** that goes beyond regex — 23 rules, all with
-   bidirectional fixtures and a passing self-test (22/22).
+   bidirectional fixtures and a passing self-test (23/23).
 3. **Auto-fix mode** for the 5 mechanical anti-patterns (TFHE → FHE
    migration, missing `allowThis`, `euint256` → `euint64` narrowing,
    if/else → `FHE.select`, `unwrap()` cast warnings).
