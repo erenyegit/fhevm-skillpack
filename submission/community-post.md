@@ -66,6 +66,31 @@ agent tooling for FHEVM is weakest:
 | `demo/frontend-page.tsx`                                         | Drop-in `/group-buy` route for the Next.js app                                                                                                                                                                                                   |
 | `demo/VIDEO-SCRIPT.md`                                           | 3-minute shooting script (cue cards + voice-over)                                                                                                                                                                                                |
 
+## Battle-Tested During Build
+
+During this skill's own development on Sepolia, the linter, SKILL.md
+directives, and post-deploy testing flow uncovered four real FHEVM
+correctness issues — three already in the catalog (AP-002 legacy TFHE
+import, AP-010 callback replay defense, AP-021 cross-contract proof
+binding), plus two discovered live and added to the catalog with fresh
+AST lint rules and bad/good fixtures:
+
+- **AP-023** — Zero-handle decryption sentinel. The KMS treats `euint64(0)`
+  default state as "no ciphertext exists" and silently ignores the
+  decryption request, locking the contract forever. Fix: seed encrypted
+  state in the constructor with `FHE.asEuint64(0)` + `FHE.allowThis(...)`.
+
+- **AP-024** — Post-schedule state mutation. Once a handle has been made
+  publicly decryptable and a Gateway request is pending, any further
+  `FHE.add` produces a new ciphertext id that diverges from the handle
+  the relayer is decrypting. Result: silent UX hang. Fix: gate
+  state-mutating functions with `require(scheduledRevealBlock == 0)`.
+
+The skill is not static documentation — it grew from 22 to 24 anti-patterns
+during the construction of this very submission. Every rule shipped with
+a working fixture and an AST lint rule that catches the pattern in any
+downstream FHEVM codebase.
+
 ## The unique edges (vs existing FHEVM skill submissions)
 
 > Compared to the existing single-file regex-linter approach in the
